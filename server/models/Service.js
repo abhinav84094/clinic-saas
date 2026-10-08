@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const serviceSchema = new mongoose.Schema(
@@ -6,27 +7,23 @@ const serviceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Clinic",
       required: true,
+      immutable: true,
+      index: true,
     },
 
     name: {
       type: String,
       required: true,
       trim: true,
+      minlength: 2,
+      maxlength: 120,
     },
 
     description: {
       type: String,
       trim: true,
-    },
-
-    fee: {
-      type: Number,
-      min: 0,
-    },
-
-    durationMinutes: {
-      type: Number,
-      min: 1,
+      default: "",
+      maxlength: 2000,
     },
 
     isActive: {
@@ -36,11 +33,14 @@ const serviceSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    strict: "throw",
   }
 );
 
-serviceSchema.index({ clinicId: 1 });
+serviceSchema.index({
+  clinicId: 1,
+  isActive: 1,
+  name: 1,
+});
 
-const Service = mongoose.model("Service", serviceSchema);
-
-export default Service;
+export default mongoose.model("Service", serviceSchema);
