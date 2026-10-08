@@ -4,7 +4,8 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js"
 import cookieParser from "cookie-parser";
-import clinicRoutes from "./routes/clinicRoutes.js"
+import clinicRoutes from "./routes/clinicRoutes.js";
+import doctorRoutes from './routes/doctorRoutes.js';
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/clinics", clinicRoutes);
+app.use("/api/clinics/:clinicId/doctors", doctorRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({

@@ -73,6 +73,7 @@ export const getClinicPublishingReadiness = async (
   };
 };
 
+
 export const publishClinic = async (clinicId) => {
   if (!mongoose.isObjectIdOrHexString(clinicId)) {
     const error = new Error("Invalid clinic ID");
@@ -80,53 +81,55 @@ export const publishClinic = async (clinicId) => {
     throw error;
   }
 
-  const readiness =
-    await getClinicPublishingReadiness(clinicId);
-
-  if (readiness.status !== "draft") {
-    const error = new Error(
-      "Only draft clinics can be published"
-    );
-    error.statusCode = 409;
-    throw error;
-  }
-
-  if (!readiness.ready) {
-    const error = new Error(
-      "Clinic setup is incomplete"
-    );
-
-    error.statusCode = 422;
-    error.missingRequirements =
-      readiness.missingRequirements;
-
-    throw error;
-  }
-
-  const clinic = await Clinic.findOneAndUpdate(
-    {
-      _id: clinicId,
-      status: "draft",
-    },
-    {
-      $set: {
-        status: "active",
-        activatedAt: new Date(),
+  return mongoose.connection.transaction(async (session) => {
+    const clinic = await Clinic.findOneAndUpdate(
+      {
+        _id: clinicId,
+        status: "draft",
       },
-    },
-    {
-      returnDocument: "after",
-      runValidators: true,
-    }
-  );
-
-  if (!clinic) {
-    const error = new Error(
-      "Clinic publishing state has changed"
+      {
+        $inc: { __v: 1 },
+      },
+      {
+        session,
+        returnDocument: "after",
+      }
     );
-    error.statusCode = 409;
-    throw error;
-  }
 
-  return clinic;
+    if (!clinic) {
+      const error = new Error(
+        "Clinic not found or cannot be published"
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const activeDoctorCount =
+      await Doctor.countDocuments({
+        clinicId,
+        isActive: true,
+      }).session(session);
+
+    const missingRequirements = getMissingRequirements(
+      clinic,
+      activeDoctorCount
+    );
+
+    if (missingRequirements.length > 0) {
+      const error = new Error(
+        "Clinic setup is incomplete"
+      );
+      error.statusCode = 422;
+      error.missingRequirements = missingRequirements;
+      throw error;
+    }
+
+    clinic.status = "active";
+    clinic.activatedAt = new Date();
+
+    await clinic.save({ session });
+
+    return clinic;
+  });
 };
+
