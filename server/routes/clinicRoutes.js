@@ -4,6 +4,10 @@ import { getSlugAvailability, createClinicController, getMyClinics, getClinicPro
 } from "../controllers/clinicController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { requireClinicAccess } from "../middleware/clinicAccessMiddleware.js";
+import {
+  getPublishingReadinessController,
+  publishClinicController,
+} from "../controllers/clinicPublishingController.js";
 
 const router = Router();
 
@@ -24,5 +28,21 @@ router.patch(
   requireClinicAccess(["owner", "admin"]),
   updateClinicProfileController
 );
+
+
+router.get(
+  "/:clinicId/publishing-readiness",
+  protect,
+  requireClinicAccess(["owner", "admin"]),
+  getPublishingReadinessController
+);
+
+router.post(
+  "/:clinicId/publish",
+  protect,
+  requireClinicAccess(["owner"]),
+  publishClinicController
+);
+
 
 export default router;
