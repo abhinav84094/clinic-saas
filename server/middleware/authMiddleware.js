@@ -22,10 +22,17 @@ export const protect = async (req, res, next) => {
       .select("-password -emailVerificationOtpHash");
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "User account not found",
-      });
+        return res.status(401).json({
+            success: false,
+            message: "User account not found",
+        });
+    }
+
+    if (decoded.tokenVersion !== (user.tokenVersion ?? 0)) {
+        return res.status(401).json({
+            success: false,
+            message: "Session expired. Please log in again.",
+        });
     }
 
     if (!user.emailVerified) {

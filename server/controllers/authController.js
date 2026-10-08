@@ -1,9 +1,8 @@
 import User from "../models/User.js";
-import { generateOtp, hashOtp } from "../utils/otp.js";
-import { sendVerificationOtp } from "../services/emailService.js";
+import { generateOtp, hashOtp,hashPasswordResetOtp } from "../utils/otp.js";
+import { sendVerificationOtp, sendPasswordResetOtp } from "../services/emailService.js";
 import generateToken from "../utils/generateToken.js";
-
-
+import crypto from "crypto";
 
 export const registerUser = async (req, res) => {
   try {
@@ -268,7 +267,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion);
 
     res.cookie("accessToken", token, {
       httpOnly: true,
@@ -295,6 +294,205 @@ export const loginUser = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while logging in",
+    });
+  }
+};
+
+
+
+
+export const logoutUser = (req, res) => {
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
+};
+
+
+export const forgotPassword = async (req, res) => {
+  const genericMessage =
+    "If an account exists with this email, a password reset code will be sent.";
+
+  try {
+    const { email } = req.body ?? {};
+
+    if (typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid email is required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: genericMessage,
+      });
+    }
+
+    // Allow only one OTP request every 60 seconds.
+    if (user.passwordResetLastSentAt) {
+      const elapsedTime =
+        Date.now() -
+        user.passwordResetLastSentAt.getTime();
+
+      if (elapsedTime < 60 * 1000) {
+        return res.status(200).json({
+          success: true,
+          message: genericMessage,
+        });
+      }
+    }
+
+    const otp = generateOtp();
+
+    const otpHash = hashPasswordResetOtp(
+      otp,
+      user._id
+    );
+
+    user.passwordResetOtpHash = otpHash;
+
+    user.passwordResetExpiresAt = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    user.passwordResetLastSentAt = new Date();
+
+    user.passwordResetAttempts = 0;
+
+    await user.save();
+
+    await sendPasswordResetOtp(user.email, otp);
+
+    return res.status(200).json({
+      success: true,
+      message: genericMessage,
+    });
+  } catch (error) {
+    console.error(
+      "Forgot password error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to process password reset request",
+    });
+  }
+};
+
+
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body ?? {};
+
+    if (
+      typeof email !== "string" ||
+      typeof otp !== "string" ||
+      typeof newPassword !== "string" ||
+      !email.trim() ||
+      !/^\d{6}$/.test(otp) ||
+      newPassword.length < 8
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid email, 6-digit OTP, and password of at least 8 characters are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (
+      !user ||
+      !user.passwordResetOtpHash ||
+      !user.passwordResetExpiresAt
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset code",
+      });
+    }
+
+    if (user.passwordResetExpiresAt <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset code",
+      });
+    }
+
+    if (user.passwordResetAttempts >= 5) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many incorrect attempts. Request a new code.",
+      });
+    }
+
+    const submittedHash = hashPasswordResetOtp(
+      otp,
+      user._id
+    );
+
+    const storedHash = Buffer.from(
+      user.passwordResetOtpHash,
+      "hex"
+    );
+
+    const receivedHash = Buffer.from(
+      submittedHash,
+      "hex"
+    );
+
+    const isValidOtp =
+      storedHash.length === receivedHash.length &&
+      crypto.timingSafeEqual(storedHash, receivedHash);
+
+    if (!isValidOtp) {
+      user.passwordResetAttempts += 1;
+      await user.save();
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset code",
+      });
+    }
+
+    user.password = newPassword;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+
+    user.passwordResetOtpHash = undefined;
+    user.passwordResetExpiresAt = undefined;
+    user.passwordResetLastSentAt = undefined;
+    user.passwordResetAttempts = 0;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully. Please log in.",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to reset password",
     });
   }
 };
