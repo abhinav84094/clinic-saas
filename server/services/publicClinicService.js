@@ -3,6 +3,10 @@ import Clinic from "../models/Clinic.js";
 import Doctor from "../models/Doctor.js";
 
 import { normalizeSlug } from "../utils/slug.js";
+import Service from "../models/Service.js";
+import DoctorService from "../models/DoctorService.js";
+
+
 
 const createServiceError = (message, statusCode) => {
   const error = new Error(message);
@@ -81,4 +85,88 @@ export const getPublicClinicBySlug = async (slugValue) => {
     clinic: getPublicClinicFields(clinic),
     doctors: doctors.map(getPublicDoctorFields),
   };
+};
+
+
+
+
+export const getPublicClinicServices = async (slugValue) => {
+  const slug = normalizeSlug(slugValue);
+
+  const clinic = await Clinic.findOne({
+    slug,
+    status: "active",
+  })
+    .select("_id")
+    .lean();
+
+  if (!clinic) {
+    const error = new Error("Clinic not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const offerings = await DoctorService.find({
+    clinicId: clinic._id,
+    isActive: true,
+  })
+    .populate({
+      path: "doctorId",
+      match: {
+        clinicId: clinic._id,
+        isActive: true,
+      },
+      select: "name specialization qualifications",
+    })
+    .populate({
+      path: "serviceId",
+      match: {
+        clinicId: clinic._id,
+        isActive: true,
+      },
+      select: "name description",
+    })
+    .lean();
+
+  const serviceMap = new Map();
+
+  for (const offering of offerings) {
+    // Exclude inactive, deleted or cross-clinic references.
+    if (!offering.doctorId || !offering.serviceId) {
+      continue;
+    }
+
+    const service = offering.serviceId;
+    const doctor = offering.doctorId;
+
+    const serviceKey = String(service._id);
+
+    if (!serviceMap.has(serviceKey)) {
+      serviceMap.set(serviceKey, {
+        id: serviceKey,
+        name: service.name,
+        description: service.description,
+        doctors: [],
+      });
+    }
+
+    serviceMap.get(serviceKey).doctors.push({
+      offeringId: String(offering._id),
+      doctorId: String(doctor._id),
+      name: doctor.name,
+      specialization: doctor.specialization,
+      qualifications: doctor.qualifications,
+      fee: offering.fee,
+      durationMinutes: offering.durationMinutes,
+    });
+  }
+
+  return Array.from(serviceMap.values())
+    .map((service) => ({
+      ...service,
+      doctors: service.doctors.sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 };
