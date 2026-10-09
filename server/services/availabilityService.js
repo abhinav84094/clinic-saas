@@ -18,6 +18,8 @@ import {
   intervalsOverlap,
 } from "../utils/appointmentTime.js";
 
+import BookingHold from "../models/BookingHold.js";
+
 const createError = (message, statusCode) => {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -215,6 +217,17 @@ export const getAvailableSlots = async ({
     .select("startAt endAt")
     .lean();
 
+    const holds = await BookingHold.find({
+        clinicId: clinic._id,
+        doctorId: doctor._id,
+        status: { $in: ["held", "payment_pending"] },
+        expiresAt: { $gt: new Date() },
+        startAt: { $lt: dayEnd },
+        endAt: { $gt: dayStart },
+        })
+        .select("startAt endAt")
+        .lean();
+
   const duration = offering.durationMinutes;
   const now = new Date();
   const slots = [];
@@ -267,6 +280,16 @@ export const getAvailableSlots = async ({
       );
 
       if (alreadyBooked) continue;
+      const temporarilyHeld = holds.some((hold) =>
+        intervalsOverlap(
+            startAt,
+            endAt,
+            hold.startAt,
+            hold.endAt
+        )
+        );
+
+        if (temporarilyHeld) continue;
 
       slots.push({
         startTime,

@@ -11,15 +11,38 @@ import serviceRoutes from "./routes/serviceRoutes.js";
 import doctorServiceRoutes from "./routes/doctorServiceRoutes.js";
 import scheduleRoutes from "./routes/scheduleRoutes.js";
 
-
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { protect } from "./middleware/authMiddleware.js";
+import { handleRazorpayWebhook } from "./controllers/razorpayWebhookController.js";
 
 const app = express();
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
+
+
+app.post(
+  "/api/webhooks/razorpay",
+  express.raw({ type: "application/json" }),
+  handleRazorpayWebhook
+);
+
+
+
 app.use(express.json());
 app.use(cookieParser());
+
+if (process.env.NODE_ENV !== "production") {
+  app.get("/test-checkout", protect, (req, res) => {
+    res.sendFile(path.join(__dirname, "test-checkout.html"));
+  });
+}
 
 app.use("/api/auth", authRoutes);
 app.use("/api/clinics", clinicRoutes);
@@ -37,7 +60,30 @@ app.get("/api/health", (req, res) => {
 });
 
 
+app.use((err, req, res, next) => {
+  console.error("API ERROR:", err);
 
+  const statusCode =
+    Number.isInteger(err.statusCode) &&
+    err.statusCode >= 400 &&
+    err.statusCode <= 599
+      ? err.statusCode
+      : 500;
+
+  const message =
+    typeof err.message === "string"
+      ? err.message
+      : typeof err.error?.description === "string"
+        ? err.error.description
+        : "Internal server error";
+
+  return res.status(statusCode).json({
+    success: false,
+    message: statusCode === 500
+      ? "Internal server error"
+      : message,
+  });
+});
 
 app.listen(PORT, async () => {
     await connectDB();

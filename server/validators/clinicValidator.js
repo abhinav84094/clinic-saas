@@ -56,6 +56,10 @@ export const createClinicSchema = z.strictObject({
   address: addressSchema.optional(),
 
   timezone: timezoneSchema.default("Asia/Kolkata"),
+  
+  billingCycle: z.enum(["monthly", "yearly"], {
+    error: "Please select a valid billing cycle",
+    }),
 });
 
 
@@ -81,8 +85,7 @@ const updateBrandingSchema = z.strictObject({
     .optional(),
 });
 
-export const updateClinicSchema = z
-  .strictObject({
+export const updateClinicSchema = z.strictObject({
     name: z.string().trim().min(2).max(150).optional(),
 
     description: optionalText(2000),
@@ -93,8 +96,7 @@ export const updateClinicSchema = z
 
     branding: updateBrandingSchema.optional(),
 
-    timezone: timezoneSchema.optional(),
-  })
+    timezone: timezoneSchema.optional(),})
   .refine(
     (data) =>
       Object.values(data).some(

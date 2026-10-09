@@ -2,6 +2,7 @@ import Clinic from "../models/Clinic.js";
 import { validateSlug } from "../utils/slug.js";
 import mongoose from "mongoose";
 import ClinicMembership from "../models/ClinicMembership.js";
+import { initializeClinicSubscription } from "./subscriptionService.js";
 
 
 export const checkSlugAvailability = async (value) => {
@@ -32,8 +33,17 @@ export const checkSlugAvailability = async (value) => {
 
 
 
+
+
 export const createClinic = async (userId, clinicData) => {
   const slug = clinicData.slug;
+  const billingCycle = clinicData.billingCycle;
+
+  if (!["monthly", "yearly"].includes(billingCycle)) {
+    const error = new Error("Invalid billing cycle");
+    error.statusCode = 400;
+    throw error;
+  }
 
   const existingClinic = await Clinic.exists({ slug });
 
@@ -75,6 +85,12 @@ export const createClinic = async (userId, clinicData) => {
           { session }
         );
 
+        await initializeClinicSubscription({
+          clinicId: newClinic._id,
+          billingCycle,
+          session,
+        });
+
         return newClinic;
       }
     );
@@ -85,7 +101,9 @@ export const createClinic = async (userId, clinicData) => {
       error.code === 11000 &&
       (error.keyPattern?.slug || error.keyValue?.slug)
     ) {
-      const conflict = new Error("This clinic URL is not available");
+      const conflict = new Error(
+        "This clinic URL is not available"
+      );
       conflict.statusCode = 409;
       throw conflict;
     }
@@ -93,6 +111,8 @@ export const createClinic = async (userId, clinicData) => {
     throw error;
   }
 };
+
+
 
 
 

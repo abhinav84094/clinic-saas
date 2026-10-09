@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinic SaaS - Test Payment</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <h2>Clinic SaaS - Test Subscription</h2>
+
+  <button id="payButton">Pay Subscription</button>
+  <pre id="result"></pre>
+
+  <script>
+    const API_URL = "http://localhost:5000";
+
+    const CLINIC_ID = "6ac89529d2b85bc98a8a3495";
+
+    const result = document.getElementById("result");
+
+    document.getElementById("payButton").onclick = async () => {
+      try {
+        const orderResponse = await fetch(
+          `${API_URL}/api/clinics/${CLINIC_ID}/subscription/payment-order`,
+          {
+            method: "POST",
+            credentials: "include",
+          }
+        );
+
+        const orderData = await orderResponse.json();
+
+        if (!orderResponse.ok) {
+          throw new Error(
+            orderData.message || "Failed to create payment order"
+          );
+        }
+
+        const { order } = orderData;
+
+        const options = {
+          key: order.keyId,
+          amount: order.amount,
+          currency: order.currency,
+          order_id: order.orderId,
+          name: "Clinic SaaS",
+          description: "Basic Subscription",
+
+          handler: async (paymentResponse) => {
+            try {
+              const verifyResponse = await fetch(
+                `${API_URL}/api/clinics/${CLINIC_ID}/subscription/verify-payment`,
+                {
+                  method: "POST",
+                  credentials: "include",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(paymentResponse),
+                }
+              );
+
+              const verification = await verifyResponse.json();
+
+              if (!verifyResponse.ok) {
+                throw new Error(
+                  verification.message || "Verification failed"
+                );
+              }
+
+              result.textContent = JSON.stringify(
+                verification,
+                null,
+                2
+              );
+            } catch (error) {
+              result.textContent =
+                "Verification error: " + error.message;
+            }
+          },
+
+          modal: {
+            ondismiss: () => {
+              result.textContent = "Checkout closed";
+            },
+          },
+
+          theme: {
+            color: "#2563eb",
+          },
+        };
+
+        const checkout = new Razorpay(options);
+        checkout.open();
+      } catch (error) {
+        result.textContent = "Error: " + error.message;
+      }
+    };
+  </script>
+</body>
+</html>

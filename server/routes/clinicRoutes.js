@@ -9,6 +9,9 @@ import {
   publishClinicController,
 } from "../controllers/clinicPublishingController.js";
 
+import {  createPaymentOrder, verifyPaymentController} from "../controllers/subscriptionPaymentController.js";
+
+
 const router = Router();
 
 router.get("/slug-availability", getSlugAvailability);
@@ -42,6 +45,20 @@ router.post(
   protect,
   requireClinicAccess(["owner"]),
   publishClinicController
+);
+
+router.post(
+  "/:clinicId/subscription/payment-order",
+  protect,
+  requireClinicAccess(["owner"]),
+  createPaymentOrder
+);
+
+router.post(
+  "/:clinicId/subscription/verify-payment",
+  protect,
+  requireClinicAccess(["owner"]),
+  verifyPaymentController
 );
 
 
