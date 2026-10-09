@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 
 import Clinic from "../models/Clinic.js";
 import Doctor from "../models/Doctor.js";
+import ClinicSubscription from "../models/ClinicSubscription.js";
 
 const hasText = (value) =>
   typeof value === "string" && value.trim().length > 0;
@@ -37,13 +38,15 @@ const getMissingRequirements = (clinic, doctorCount) => {
   return missing;
 };
 
-export const getClinicPublishingReadiness = async (
-  clinicId
-) => {
+export const getClinicPublishingReadiness = async (clinicId) => {
+  if (!mongoose.isValidObjectId(clinicId)) {
+    const error = new Error("Invalid clinic ID");
+    error.statusCode = 400;
+    throw error;
+  }
+
   const clinic = await Clinic.findById(clinicId)
-    .select(
-      "name slug contact address status activatedAt"
-    )
+    .select("name slug contact address status activatedAt")
     .lean();
 
   if (!clinic || clinic.status === "archived") {
@@ -52,23 +55,42 @@ export const getClinicPublishingReadiness = async (
     throw error;
   }
 
-  const activeDoctorCount = await Doctor.countDocuments({
-    clinicId: clinic._id,
-    isActive: true,
-  });
+  const [activeDoctorCount, subscription] = await Promise.all([
+    Doctor.countDocuments({
+      clinicId: clinic._id,
+      isActive: true,
+    }),
+    ClinicSubscription.findOne({
+      clinicId: clinic._id,
+    }).lean(),
+  ]);
 
   const missingRequirements = getMissingRequirements(
     clinic,
     activeDoctorCount
   );
 
+  const hasActiveSubscription =
+    subscription?.status === "active" &&
+    subscription.currentPeriodStart instanceof Date &&
+    subscription.currentPeriodStart <= new Date() &&
+    subscription.currentPeriodEnd instanceof Date &&
+    subscription.currentPeriodEnd > new Date();
+
+  if (!hasActiveSubscription) {
+    missingRequirements.push("active_subscription");
+  }
+
   return {
     clinicId: clinic._id,
     status: clinic.status,
     ready: missingRequirements.length === 0,
-    canPublish: clinic.status === "draft" &&missingRequirements.length === 0,
+    canPublish:
+      clinic.status === "draft" &&
+      missingRequirements.length === 0,
     missingRequirements,
     activeDoctorCount,
+    subscriptionStatus: subscription?.status ?? "missing",
     activatedAt: clinic.activatedAt,
   };
 };
@@ -102,6 +124,27 @@ export const publishClinic = async (clinicId) => {
       );
       error.statusCode = 409;
       throw error;
+    }
+
+    const subscription = await ClinicSubscription.findOne({
+        clinicId,
+        }).session(session);
+
+        const now = new Date();
+
+        if (
+        !subscription ||
+        subscription.status !== "active" ||
+        !(subscription.currentPeriodStart instanceof Date) ||
+        subscription.currentPeriodStart > now ||
+        !(subscription.currentPeriodEnd instanceof Date) ||
+        subscription.currentPeriodEnd <= now
+        ) {
+        const error = new Error(
+            "An active subscription is required to publish the clinic"
+        );
+        error.statusCode = 403;
+        throw error;
     }
 
     const activeDoctorCount =
