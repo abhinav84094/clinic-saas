@@ -10,6 +10,14 @@ import {
 } from "../controllers/authController.js";
 import { protect, getMe } from "../middleware/authMiddleware.js";
 
+import {
+  googleLogin,
+  completeGoogleSignup,
+} from "../controllers/googleAuthController.js";
+
+
+
+
 const router = express.Router();
 
 router.post("/register", registerUser);
@@ -20,5 +28,11 @@ router.get("/me", protect, getMe);
 router.post("/logout", logoutUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+
+
+
+router.post("/google", googleLogin);
+router.post("/google/complete-signup",completeGoogleSignup);
+
 
 export default router;

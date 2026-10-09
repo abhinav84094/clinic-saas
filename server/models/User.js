@@ -23,6 +23,14 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 8,
     },
+    
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      immutable: true,
+    },
+
 
     role: {
       type: String,
