@@ -20,6 +20,7 @@ import {
 import {
   createPaymentOrder,
   verifyPaymentController,
+  reconcilePaymentController,
 } from "../controllers/subscriptionPaymentController.js";
 
 import {
@@ -27,13 +28,28 @@ import {
   updateBillingCycleController,
 } from "../controllers/subscriptionSetupController.js";
 
+import {
+  getPendingPaymentController,
+} from "../controllers/subscriptionRecoveryController.js";
+
 const router = Router();
 
-router.get("/slug-availability", getSlugAvailability);
+router.get(
+  "/slug-availability",
+  getSlugAvailability
+);
 
-router.post("/", protect, createClinicController);
+router.post(
+  "/",
+  protect,
+  createClinicController
+);
 
-router.get("/my-clinics", protect, getMyClinics);
+router.get(
+  "/my-clinics",
+  protect,
+  getMyClinics
+);
 
 router.get(
   "/:clinicId",
@@ -63,7 +79,6 @@ router.post(
   publishClinicController
 );
 
-// Subscription setup
 router.get(
   "/:clinicId/subscription",
   protect,
@@ -78,7 +93,13 @@ router.patch(
   updateBillingCycleController
 );
 
-// Existing Razorpay endpoints
+router.get(
+  "/:clinicId/subscription/pending-payment",
+  protect,
+  requireClinicAccess(["owner"]),
+  getPendingPaymentController
+);
+
 router.post(
   "/:clinicId/subscription/payment-order",
   protect,
@@ -91,6 +112,13 @@ router.post(
   protect,
   requireClinicAccess(["owner"]),
   verifyPaymentController
+);
+
+router.post(
+  "/:clinicId/subscription/reconcile-payment",
+  protect,
+  requireClinicAccess(["owner"]),
+  reconcilePaymentController
 );
 
 export default router;

@@ -9,6 +9,8 @@ import {
   LoaderCircle,
   LockKeyhole,
   ShieldCheck,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 
 import api from "../services/api";
@@ -25,6 +27,9 @@ const money = (amount) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
+const SCRIPT_URL =
+  "https://checkout.razorpay.com/v1/checkout.js";
+
 function loadRazorpayScript() {
   return new Promise((resolve, reject) => {
     if (window.Razorpay) {
@@ -32,31 +37,30 @@ function loadRazorpayScript() {
       return;
     }
 
-    const existing = document.querySelector(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    let script = document.querySelector(
+      `script[src="${SCRIPT_URL}"]`
     );
 
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), {
-        once: true,
-      });
-      existing.addEventListener(
-        "error",
-        () => reject(new Error("Unable to load Razorpay.")),
-        { once: true }
-      );
-      return;
+    if (!script) {
+      script = document.createElement("script");
+      script.src = SCRIPT_URL;
+      script.async = true;
+      document.body.appendChild(script);
     }
 
-    const script = document.createElement("script");
-    script.src =
-      "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () =>
-      reject(new Error("Unable to load Razorpay."));
+    script.addEventListener(
+      "load",
+      () => resolve(),
+      { once: true }
+    );
 
-    document.body.appendChild(script);
+    script.addEventListener(
+      "error",
+      () => reject(new Error("Unable to load Razorpay.")),
+      { once: true }
+    );
+
+    if (window.Razorpay) resolve();
   });
 }
 
@@ -72,16 +76,21 @@ export default function SubscriptionSetupPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [pendingOrderId, setPendingOrderId] = useState("");
+  const [requiresRecovery, setRequiresRecovery] = useState(false);
 
   const paymentLock = useRef(false);
-  const checkoutRef = useRef(null);
 
   useEffect(() => {
     let active = true;
 
     async function load() {
+      setLoading(true);
+
       try {
         const [clinicResponse, subscriptionResponse] =
           await Promise.all([
@@ -110,15 +119,27 @@ export default function SubscriptionSetupPage() {
   }, [base]);
 
   const isActive = subscription?.status === "active";
+
   const canPay =
     clinic?.status === "draft" &&
     subscription?.status === "pending";
 
+  const busy = saving || paying || recovering;
+
+  async function refreshSubscription() {
+    const { data } = await api.get(
+      `${base}/subscription`
+    );
+
+    setSubscription(data.subscription);
+    return data.subscription;
+  }
+
   async function selectCycle(billingCycle) {
     if (
-      saving ||
-      paying ||
+      busy ||
       !canPay ||
+      pendingOrderId ||
       subscription.billingCycle === billingCycle
     ) {
       return;
@@ -143,11 +164,59 @@ export default function SubscriptionSetupPage() {
     }
   }
 
+  async function recoverPayment() {
+    if (!pendingOrderId || busy) return;
+
+    setRecovering(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const { data } = await api.post(
+        `${base}/subscription/reconcile-payment`,
+        {
+          razorpay_order_id: pendingOrderId,
+        }
+      );
+
+      if (
+        data.success !== true ||
+        data.subscription?.status !== "active"
+      ) {
+        throw new Error(
+          "Subscription activation was not confirmed."
+        );
+      }
+
+      await refreshSubscription();
+
+      setRequiresRecovery(false);
+      setPendingOrderId("");
+
+      navigate(`${base}/review`, {
+        replace: true,
+      });
+    } catch (err) {
+      setRequiresRecovery(true);
+
+      setError(
+        "We could not confirm a captured payment yet. " +
+        "If money was deducted, do not pay again. " +
+        "Keep your order reference and contact support " +
+        "if the issue continues. " +
+        getError(err)
+      );
+    } finally {
+      setRecovering(false);
+    }
+  }
+
   async function startPayment() {
     if (
       paymentLock.current ||
-      saving ||
-      !canPay
+      busy ||
+      !canPay ||
+      requiresRecovery
     ) {
       return;
     }
@@ -180,32 +249,42 @@ export default function SubscriptionSetupPage() {
         );
       }
 
+      setPendingOrderId(order.orderId);
+
       const checkout = new window.Razorpay({
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
         order_id: order.orderId,
+
         name: clinic?.name || "Clinic Subscription",
+
         description: `Basic Plan — ${
           subscription.billingCycle === "yearly"
             ? "Yearly"
             : "Monthly"
         }`,
+
         theme: {
           color: "#2563EB",
         },
+
         modal: {
+          confirm_close: true,
+
           ondismiss: () => {
             if (paymentLock.current) {
               paymentLock.current = false;
               setPaying(false);
+
               setNotice(
-                "Checkout closed. No payment confirmation was received."
+                "Checkout closed. If you completed a " +
+                "payment, check its status before retrying."
               );
             }
           },
-          confirm_close: true,
         },
+
         handler: async (response) => {
           try {
             const verification = await api.post(
@@ -226,18 +305,24 @@ export default function SubscriptionSetupPage() {
                 "active"
             ) {
               throw new Error(
-                "Payment verification did not confirm an active subscription."
+                "Payment verification did not confirm activation."
               );
             }
 
-            navigate(
-              `/clinics/${clinicId}/review`,
-              { replace: true }
-            );
+            setRequiresRecovery(false);
+            setPendingOrderId("");
+
+            navigate(`${base}/review`, {
+              replace: true,
+            });
           } catch (err) {
+            setRequiresRecovery(true);
+
             setError(
-              "Payment may have been captured, but verification is incomplete. Do not pay again. Contact support with your payment reference. " +
-                getError(err)
+              "Payment may have been captured, but " +
+              "subscription activation is not confirmed. " +
+              "Do not pay again. Use Check Payment Status. " +
+              getError(err)
             );
           } finally {
             paymentLock.current = false;
@@ -246,12 +331,13 @@ export default function SubscriptionSetupPage() {
         },
       });
 
-      checkoutRef.current = checkout;
-
       checkout.on("payment.failed", (response) => {
+        setRequiresRecovery(true);
+
         setError(
-          response.error?.description ||
-            "Payment failed. Please try again after checking its status."
+          (response.error?.description ||
+            "Payment could not be completed.") +
+            " Check the payment status before retrying."
         );
       });
 
@@ -350,9 +436,10 @@ export default function SubscriptionSetupPage() {
               </div>
 
               <div>
-                <h2 className="text-xl font-bold">
+                <h2 className="text-xl font-bold text-slate-900">
                   Basic Plan
                 </h2>
+
                 <p className="text-sm text-slate-500">
                   One plan, flexible billing
                 </p>
@@ -368,7 +455,11 @@ export default function SubscriptionSetupPage() {
                   <button
                     key={cycle}
                     type="button"
-                    disabled={!canPay || saving || paying}
+                    disabled={
+                      !canPay ||
+                      busy ||
+                      Boolean(pendingOrderId)
+                    }
                     onClick={() => selectCycle(cycle)}
                     aria-pressed={selected}
                     className={`rounded-2xl border-2 p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -392,8 +483,8 @@ export default function SubscriptionSetupPage() {
 
                     <p className="mt-2 text-xs text-slate-500">
                       {cycle === "monthly"
-                        ? "Billed every 30 days"
-                        : "Billed every 365 days"}
+                        ? "30-day subscription period"
+                        : "365-day subscription period"}
                     </p>
                   </button>
                 );
@@ -443,7 +534,7 @@ export default function SubscriptionSetupPage() {
           </section>
 
           <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-            <h2 className="text-lg font-bold">
+            <h2 className="text-lg font-bold text-slate-900">
               Order Summary
             </h2>
 
@@ -469,17 +560,15 @@ export default function SubscriptionSetupPage() {
               </div>
 
               <p className="mt-2 text-xs text-slate-500">
-                Amount confirmed by your server before
-                Razorpay Checkout.
+                The final payment amount is confirmed
+                by your backend before checkout.
               </p>
             </div>
 
             {isActive ? (
               <button
                 type="button"
-                onClick={() =>
-                  navigate(`${base}/review`)
-                }
+                onClick={() => navigate(`${base}/review`)}
                 className="mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 font-semibold text-white"
               >
                 Continue to Review
@@ -490,8 +579,8 @@ export default function SubscriptionSetupPage() {
                 type="button"
                 disabled={
                   !canPay ||
-                  paying ||
-                  saving ||
+                  busy ||
+                  requiresRecovery ||
                   !Number.isFinite(subscription.price) ||
                   subscription.price <= 0
                 }
@@ -515,11 +604,52 @@ export default function SubscriptionSetupPage() {
               </button>
             )}
 
+            {pendingOrderId && !isActive && (
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <AlertTriangle size={18} />
+
+                  <p className="text-sm font-semibold">
+                    Payment Status
+                  </p>
+                </div>
+
+                <p className="mt-2 break-all text-xs text-amber-800">
+                  Order: {pendingOrderId}
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-amber-800">
+                  If money was deducted but your
+                  subscription is still pending, check
+                  the order status before trying again.
+                </p>
+
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={recoverPayment}
+                  className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-900 disabled:opacity-50"
+                >
+                  {recovering ? (
+                    <LoaderCircle
+                      size={16}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <RefreshCw size={16} />
+                  )}
+
+                  Check Payment Status
+                </button>
+              </div>
+            )}
+
             <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-slate-500">
               <ShieldCheck
                 size={18}
-                className="shrink-0 text-slate-500"
+                className="shrink-0"
               />
+
               Payment is processed by Razorpay.
               Subscription activation requires
               server-side verification.

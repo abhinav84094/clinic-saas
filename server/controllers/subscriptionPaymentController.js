@@ -2,19 +2,14 @@
 import {
   createSubscriptionPaymentOrder,
   verifySubscriptionPayment,
+  reconcileSubscriptionPayment,
 } from "../services/subscriptionPaymentService.js";
-
-
 
 export const createPaymentOrder = async (req, res, next) => {
   try {
-    const { clinicId } = req.params;
-
-    const userId = req.user._id;
-
     const order = await createSubscriptionPaymentOrder({
-      clinicId,
-      userId,
+      clinicId: req.params.clinicId,
+      userId: req.user._id,
     });
 
     return res.status(201).json({
@@ -26,21 +21,16 @@ export const createPaymentOrder = async (req, res, next) => {
   }
 };
 
-
-
-
 export const verifyPaymentController = async (req, res, next) => {
   try {
-    const { clinicId } = req.params;
-
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-    } = req.body;
+    } = req.body || {};
 
     const result = await verifySubscriptionPayment({
-      clinicId,
+      clinicId: req.params.clinicId,
       userId: req.user._id,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
@@ -52,6 +42,41 @@ export const verifyPaymentController = async (req, res, next) => {
       message: result.alreadyProcessed
         ? "Subscription payment was already verified"
         : "Subscription payment verified successfully",
+      subscription: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const reconcilePaymentController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { razorpay_order_id } = req.body || {};
+
+    if (
+      typeof razorpay_order_id !== "string" ||
+      !/^order_[A-Za-z0-9]+$/.test(razorpay_order_id)
+    ) {
+      return res.status(400).json({
+        message: "A valid Razorpay order ID is required",
+      });
+    }
+
+    const result = await reconcileSubscriptionPayment({
+      clinicId: req.params.clinicId,
+      userId: req.user._id,
+      razorpayOrderId: razorpay_order_id,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: result.alreadyProcessed
+        ? "Payment was already processed"
+        : "Payment recovered and subscription activated",
       subscription: result,
     });
   } catch (error) {
