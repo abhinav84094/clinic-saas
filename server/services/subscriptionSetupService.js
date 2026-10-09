@@ -95,71 +95,98 @@ export const updateSubscriptionBillingCycle = async ({
     );
   }
 
-  const subscription = await ClinicSubscription.findOne({
-    clinicId,
-  });
+  // Reserve the subscription atomically.
+  // Payment creation uses this same lock.
+  const token = new mongoose.Types.ObjectId().toString();
 
-  if (!subscription) {
-    throw createError("Subscription not found", 404);
-  }
-
-  if (
-    subscription.status !== "pending" ||
-    subscription.plan !== "basic"
-  ) {
-    throw createError(
-      "Billing cycle cannot be changed for this subscription",
-      409
-    );
-  }
-
-  if (subscription.billingCycle === billingCycle) {
-    return formatSubscription(subscription);
-  }
-
-  // Do not alter a subscription while a payment order
-  // may still be paid or reconciled.
-  const existingOrder = await SubscriptionPayment.exists({
-    clinicId,
-    subscriptionId: subscription._id,
-  });
-
-  if (existingOrder) {
-    throw createError(
-      "A payment order already exists. Complete or resolve that payment before changing the billing cycle.",
-      409
-    );
-  }
-
-  const config = getPlanConfig("basic", billingCycle);
-
-  const updated = await ClinicSubscription.findOneAndUpdate(
+  const subscription = await ClinicSubscription.findOneAndUpdate(
     {
-      _id: subscription._id,
       clinicId,
       status: "pending",
       plan: "basic",
-      billingCycle: subscription.billingCycle,
+      $or: [
+        { paymentOrderLock: null },
+        { paymentOrderLock: { $exists: false } },
+      ],
     },
     {
       $set: {
-        billingCycle,
-        priceSnapshot: config.price,
-        bookingLimit: config.bookingLimit,
+        paymentOrderLock: token,
       },
     },
     {
-      new: true,
-      runValidators: true,
+      returnDocument: "after",
     }
   );
 
-  if (!updated) {
+  if (!subscription) {
     throw createError(
-      "Subscription changed. Please refresh and try again.",
+      "Subscription payment setup is busy or not eligible",
       409
     );
   }
 
-  return formatSubscription(updated);
+  try {
+    if (subscription.billingCycle === billingCycle) {
+      return formatSubscription(subscription);
+    }
+
+    // Conservative policy:
+    // Do not change billing cycle once a payment order exists.
+    // A separate cancellation/reconciliation workflow is required.
+    const existingOrder = await SubscriptionPayment.exists({
+      clinicId,
+      subscriptionId: subscription._id,
+    });
+
+    if (existingOrder) {
+      throw createError(
+        "A payment order already exists. Contact support to change billing cycle.",
+        409
+      );
+    }
+
+    const config = getPlanConfig("basic", billingCycle);
+
+    const updated = await ClinicSubscription.findOneAndUpdate(
+      {
+        _id: subscription._id,
+        paymentOrderLock: token,
+        status: "pending",
+        billingCycle: subscription.billingCycle,
+      },
+      {
+        $set: {
+          billingCycle,
+          priceSnapshot: config.price,
+          bookingLimit: config.bookingLimit,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!updated) {
+      throw createError(
+        "Subscription changed. Refresh and try again.",
+        409
+      );
+    }
+
+    return formatSubscription(updated);
+  } finally {
+    await ClinicSubscription.updateOne(
+      {
+        _id: subscription._id,
+        paymentOrderLock: token,
+      },
+      {
+        $set: {
+          paymentOrderLock: null,
+        },
+      }
+    );
+  }
 };

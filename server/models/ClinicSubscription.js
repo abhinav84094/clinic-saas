@@ -21,34 +21,34 @@ const clinicSubscriptionSchema = new Schema(
     },
 
     status: {
-        type: String,
-        enum: [
-            "pending",
-            "trialing",
-            "active",
-            "past_due",
-            "cancelled",
-            "expired",
-        ],
-        default: "pending",
-        required: true,
+      type: String,
+      enum: [
+        "pending",
+        "trialing",
+        "active",
+        "past_due",
+        "cancelled",
+        "expired",
+      ],
+      default: "pending",
+      required: true,
     },
 
     billingCycle: {
-        type: String,
-        enum: ["monthly", "yearly"],
-        required: true,
-        default: "monthly",
+      type: String,
+      enum: ["monthly", "yearly"],
+      default: "monthly",
+      required: true,
     },
 
     currentPeriodStart: {
-        type: Date,
-        default: null,
+      type: Date,
+      default: null,
     },
 
     currentPeriodEnd: {
-        type: Date,
-        default: null,
+      type: Date,
+      default: null,
     },
 
     bookingLimit: {
@@ -56,7 +56,6 @@ const clinicSubscriptionSchema = new Schema(
       default: 0,
       min: 0,
     },
-    
 
     bookingsUsed: {
       type: Number,
@@ -68,6 +67,13 @@ const clinicSubscriptionSchema = new Schema(
       type: Number,
       required: true,
       min: 0,
+    },
+
+    // Prevent concurrent order creation and billing updates.
+    // An uncertain Razorpay operation must be reviewed before unlocking.
+    paymentOrderLock: {
+      type: String,
+      default: null,
     },
   },
   {
@@ -88,20 +94,14 @@ clinicSubscriptionSchema.pre("validate", function () {
     return;
   }
 
-  if (
-    hasStart &&
-    this.currentPeriodEnd <= this.currentPeriodStart
-  ) {
+  if (hasStart && this.currentPeriodEnd <= this.currentPeriodStart) {
     this.invalidate(
       "currentPeriodEnd",
       "Subscription end must be after start"
     );
   }
 
-  if (
-    ["active", "trialing"].includes(this.status) &&
-    !hasStart
-  ) {
+  if (["active", "trialing"].includes(this.status) && !hasStart) {
     this.invalidate(
       "currentPeriodStart",
       "Active subscriptions require a valid billing period"

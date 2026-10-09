@@ -5,12 +5,10 @@ import ClinicSubscription from "../models/ClinicSubscription.js";
 import SubscriptionPayment from "../models/SubscriptionPayment.js";
 
 import { getRazorpay } from "../config/razorpay.js";
+import { classifyRazorpayOrder } from "../services/subscriptionPaymentService.js";
 
-const createError = (message, statusCode) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-};
+const fail = (message, statusCode) =>
+  Object.assign(new Error(message), { statusCode });
 
 export const getPendingPaymentController = async (
   req,
@@ -21,7 +19,7 @@ export const getPendingPaymentController = async (
     const { clinicId } = req.params;
 
     if (!mongoose.isValidObjectId(clinicId)) {
-      throw createError("Invalid clinic ID", 400);
+      throw fail("Invalid clinic ID", 400);
     }
 
     const subscription = await ClinicSubscription.findOne({
@@ -29,7 +27,7 @@ export const getPendingPaymentController = async (
     }).lean();
 
     if (!subscription) {
-      throw createError("Subscription not found", 404);
+      throw fail("Subscription not found", 404);
     }
 
     if (subscription.status === "active") {
@@ -40,88 +38,91 @@ export const getPendingPaymentController = async (
       });
     }
 
-    const payments = await SubscriptionPayment.find({
+    // Inspect all unresolved orders instead of only the latest 20.
+    const records = await SubscriptionPayment.find({
       clinicId,
       subscriptionId: subscription._id,
       status: "created",
     })
       .sort({ createdAt: -1 })
-      .limit(20)
       .lean();
-
-    if (payments.length === 0) {
-      return res.status(200).json({
-        message: "No unresolved payment order found",
-        subscriptionStatus: subscription.status,
-        payment: null,
-      });
-    }
 
     const razorpay = getRazorpay();
 
-    // Fail closed: if an earlier order cannot be checked,
-    // do not tell the user it is safe to pay again.
-    let unresolvedPayment = null;
+    let retryable = null;
+    let unresolved = null;
 
-    for (const payment of payments) {
-      const remoteOrder = await razorpay.orders.fetch(
-        payment.razorpayOrderId
+    for (const record of records) {
+      const remote = await razorpay.orders.fetch(
+        record.razorpayOrderId
       );
 
       if (
-        remoteOrder.id !== payment.razorpayOrderId ||
-        remoteOrder.amount !== payment.amount ||
-        remoteOrder.currency !== payment.currency
+        remote.id !== record.razorpayOrderId ||
+        remote.amount !== record.amount ||
+        remote.currency !== record.currency ||
+        String(remote.notes?.clinicId) !== String(clinicId) ||
+        String(remote.notes?.subscriptionId) !==
+          String(subscription._id) ||
+        remote.notes?.plan !== record.plan ||
+        remote.notes?.billingCycle !== record.billingCycle ||
+        record.billingCycle !== subscription.billingCycle ||
+        record.plan !== subscription.plan ||
+        record.amount !== subscription.priceSnapshot * 100
       ) {
-        throw createError(
-          "Payment order data mismatch. Contact support.",
+        throw fail(
+          "Payment history mismatch; contact support",
           409
         );
       }
 
-      if (
-        !["created", "attempted", "paid"].includes(
-          remoteOrder.status
-        )
-      ) {
-        throw createError(
-          "Unexpected payment order status",
-          409
-        );
-      }
+      const state = await classifyRazorpayOrder(
+        razorpay,
+        remote
+      );
 
-      // An attempted or paid order must be investigated.
-      // A created order is also retained because it may
-      // still be used for checkout.
-      if (!unresolvedPayment) {
-        unresolvedPayment = {
-          orderId: payment.razorpayOrderId,
-          amount: payment.amount,
-          currency: payment.currency,
-          billingCycle: payment.billingCycle,
-          orderStatus: remoteOrder.status,
-          createdAt: payment.createdAt,
-        };
-      }
+      const payment = {
+        orderId: record.razorpayOrderId,
+        amount: record.amount,
+        currency: record.currency,
+        billingCycle: record.billingCycle,
+        orderStatus:
+          state === "retryable"
+            ? "created"
+            : state === "paid"
+              ? "paid"
+              : "attempted",
+        createdAt: record.createdAt,
+      };
 
-      if (remoteOrder.status !== "created") {
-        unresolvedPayment = {
-          orderId: payment.razorpayOrderId,
-          amount: payment.amount,
-          currency: payment.currency,
-          billingCycle: payment.billingCycle,
-          orderStatus: remoteOrder.status,
-          createdAt: payment.createdAt,
-        };
+      if (state !== "retryable") {
+        // Prefer a paid order over an unresolved attempt.
+        if (state === "paid") {
+          unresolved = payment;
+          break;
+        }
 
-        break;
+        if (!unresolved) {
+          unresolved = payment;
+        }
+      } else if (!retryable) {
+        retryable = payment;
       }
     }
 
+    // A lock with no unresolved local order could mean that
+    // Razorpay created an order before MongoDB saving failed.
+    if (!unresolved && subscription.paymentOrderLock) {
+      throw fail(
+        "Payment setup needs support review before retrying",
+        409
+      );
+    }
+
     return res.status(200).json({
-      message: "Payment order status retrieved",
+      message: "Payment status retrieved",
       subscriptionStatus: subscription.status,
-      payment: unresolvedPayment,
+      payment: unresolved || retryable,
     });
   } catch (error) {
     next(error);
