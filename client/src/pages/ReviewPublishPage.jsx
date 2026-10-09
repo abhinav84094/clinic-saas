@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import api from "../services/api";
+import { getClinicPublicUrl } from "../utils/clinicDomain";
 
 const errorMessage = (error) =>
   error.response?.data?.message ||
@@ -59,6 +60,7 @@ function Section({ icon: Icon, title, editTo, children }) {
           <span className="rounded-xl bg-blue-50 p-3 text-blue-600">
             <Icon size={20} />
           </span>
+
           <h2 className="text-lg font-bold text-slate-900">
             {title}
           </h2>
@@ -86,6 +88,7 @@ function Detail({ label, value }) {
       <p className="text-xs font-medium text-slate-500">
         {label}
       </p>
+
       <p className="mt-1 break-words text-sm font-semibold text-slate-900">
         {value || "Not provided"}
       </p>
@@ -154,13 +157,14 @@ export default function ReviewPublishPage() {
   );
 
   const missing = readiness?.missingRequirements || [];
+
   const canPublish =
     readiness?.canPublish === true &&
     clinic?.status === "draft" &&
     !publishing;
 
-  const publicPath = clinic?.slug
-    ? `/c/${clinic.slug}`
+  const publicUrl = clinic?.slug
+    ? getClinicPublicUrl(clinic.slug)
     : null;
 
   async function handlePublish() {
@@ -171,7 +175,6 @@ export default function ReviewPublishPage() {
     setError("");
 
     try {
-      // Refresh readiness before submitting.
       const { data } = await api.get(
         `${base}/publishing-readiness`
       );
@@ -226,6 +229,7 @@ export default function ReviewPublishPage() {
         >
           {error || "Unable to load clinic review."}
         </div>
+
         <button
           onClick={loadData}
           className="mt-4 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
@@ -288,6 +292,7 @@ export default function ReviewPublishPage() {
                 size={28}
                 className="text-emerald-600"
               />
+
               <h2 className="text-xl font-bold text-emerald-900">
                 Your Clinic Website Is Live!
               </h2>
@@ -298,16 +303,16 @@ export default function ReviewPublishPage() {
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              {publicPath && (
-                <Link
-                  to={publicPath}
+              {publicUrl && (
+                <a
+                  href={publicUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white"
                 >
                   Visit Website
                   <ExternalLink size={16} />
-                </Link>
+                </a>
               )}
 
               <button
@@ -390,6 +395,7 @@ export default function ReviewPublishPage() {
                       <p className="font-semibold text-slate-900">
                         {doctor.name}
                       </p>
+
                       <p className="mt-1 text-sm text-slate-500">
                         {doctor.specialization ||
                           "Specialization not provided"}
@@ -423,6 +429,7 @@ export default function ReviewPublishPage() {
                       <p className="font-semibold text-slate-900">
                         {service.name}
                       </p>
+
                       {service.description && (
                         <p className="mt-1 text-sm text-slate-500">
                           {service.description}
@@ -448,10 +455,9 @@ export default function ReviewPublishPage() {
                 responsive website template.
               </p>
 
-              {publicPath && (
+              {publicUrl && (
                 <p className="mt-3 break-all rounded-xl bg-slate-50 p-3 font-mono text-sm text-blue-700">
-                  {window.location.origin}
-                  {publicPath}
+                  {publicUrl}
                 </p>
               )}
             </Section>
@@ -534,6 +540,7 @@ export default function ReviewPublishPage() {
                         size={16}
                         className="mt-0.5 shrink-0"
                       />
+
                       {requirementLabels[requirement] ||
                         requirement}
                     </li>
@@ -565,6 +572,7 @@ export default function ReviewPublishPage() {
                   ) : (
                     <Globe2 size={18} />
                   )}
+
                   Publish Website
                 </button>
               )}

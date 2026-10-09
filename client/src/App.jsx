@@ -24,16 +24,12 @@ import ProtectedRoute, {
 
 import AddDoctorsPage from "./pages/AddDoctorsPage";
 import ServicesSetupPage from "./pages/ServicesSetupPage";
-
-
-
 import WebsiteSetupPage from "./pages/WebsiteSetup";
 import PublicClinicPage from "./pages/PublicClinicPage";
-
 import SubscriptionSetupPage from "./pages/SubscriptionSetupPage";
 import ReviewPublishPage from "./pages/ReviewPublishPage";
 
-
+import { getClinicSlugFromHostname } from "./utils/clinicDomain";
 
 function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -96,10 +92,25 @@ function GooglePasswordSetupPage() {
   );
 }
 
-
-
-
 export default function App() {
+  const subdomainSlug = getClinicSlugFromHostname();
+
+  // On a clinic subdomain, show only its public website.
+  // Example: prakash-consultancy.yourdomain.com
+  if (subdomainSlug) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="*"
+            element={<PublicClinicPage />}
+          />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  // Main SaaS application and local development routes.
   return (
     <BrowserRouter>
       <Routes>
@@ -171,7 +182,6 @@ export default function App() {
             element={<WebsiteSetupPage />}
           />
 
-          
           <Route
             path="/clinics/:clinicId/subscription/setup"
             element={<SubscriptionSetupPage />}
@@ -182,7 +192,6 @@ export default function App() {
             element={<ReviewPublishPage />}
           />
 
-
           <Route
             path="/dashboard/clinic/:clinicId"
             element={<DashboardPage />}
@@ -190,10 +199,13 @@ export default function App() {
 
           <Route
             path="/dashboard"
-            element={<Navigate to="/my-clinics" replace />}
+            element={
+              <Navigate to="/my-clinics" replace />
+            }
           />
         </Route>
 
+        {/* Local development / legacy public route */}
         <Route
           path="/c/:slug"
           element={<PublicClinicPage />}

@@ -6,13 +6,15 @@ import { LoaderCircle } from "lucide-react";
 import api from "../services/api";
 
 import ClinicWebsiteTemplate from "../components/clinic/ClinicWebsiteTemplate";
+import { getClinicSlugFromHostname } from "../utils/clinicDomain";
 
 export default function PublicClinicPage() {
-  const { slug } = useParams();
+  const { slug: routeSlug } = useParams();
+
+  const slug = getClinicSlugFromHostname() || routeSlug;
 
   const [data, setData] = useState(null);
   const [services, setServices] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -20,6 +22,17 @@ export default function PublicClinicPage() {
     let alive = true;
 
     async function load() {
+      setLoading(true);
+      setError("");
+      setData(null);
+      setServices([]);
+
+      if (!slug) {
+        setError("Invalid clinic website URL.");
+        setLoading(false);
+        return;
+      }
+
       try {
         const [profile, catalog] = await Promise.all([
           api.get(
@@ -43,7 +56,9 @@ export default function PublicClinicPage() {
           );
         }
       } finally {
-        if (alive) setLoading(false);
+        if (alive) {
+          setLoading(false);
+        }
       }
     }
 
