@@ -1,19 +1,25 @@
 
 import mongoose from "mongoose";
 
-const appointmentSchema = new mongoose.Schema(
+const bookingHoldSchema = new mongoose.Schema(
   {
     clinicId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Clinic",
       required: true,
       immutable: true,
-      index: true,
     },
 
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Doctor",
+      required: true,
+      immutable: true,
+    },
+
+    doctorServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DoctorService",
       required: true,
       immutable: true,
     },
@@ -25,19 +31,10 @@ const appointmentSchema = new mongoose.Schema(
       immutable: true,
     },
 
-    // Doctor-specific service offering
-    doctorServiceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "DoctorService",
-      required: true,
-      immutable: true,
-    },
-
     patientName: {
       type: String,
       required: true,
       trim: true,
-      minlength: 2,
       maxlength: 120,
     },
 
@@ -54,8 +51,13 @@ const appointmentSchema = new mongoose.Schema(
       trim: true,
       maxlength: 254,
     },
+    bookingNote: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        default: "",
+    },
 
-    // Actual appointment time in UTC
     startAt: {
       type: Date,
       required: true,
@@ -66,12 +68,10 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Preserve fee and duration at booking time
     feeSnapshot: {
       type: Number,
       required: true,
       min: 0,
-      max: 1000000,
     },
 
     durationMinutesSnapshot: {
@@ -79,29 +79,38 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
       min: 5,
       max: 480,
-      validate: {
-        validator: Number.isInteger,
-        message: "Duration must be an integer",
-      },
     },
 
     status: {
       type: String,
       enum: [
-        "booked",
+        "held",
+        "payment_pending",
         "confirmed",
-        "completed",
+        "expired",
         "cancelled",
-        "no_show",
       ],
-      default: "booked",
+      default: "held",
     },
 
-    bookingNote: {
+    expiresAt: {
+      type: Date,
+      required: true,
+    },
+
+    paymentOrderId: {
       type: String,
       trim: true,
-      maxlength: 500,
-      default: "",
+    },
+
+    paymentId: {
+      type: String,
+      trim: true,
+    },
+
+    appointmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Appointment",
     },
   },
   {
@@ -110,38 +119,30 @@ const appointmentSchema = new mongoose.Schema(
   }
 );
 
-// Appointment end must be after start.
-appointmentSchema.pre("validate", function () {
-  if (
-    this.startAt &&
-    this.endAt &&
-    this.startAt >= this.endAt
-  ) {
-    this.invalidate(
-      "endAt",
-      "Appointment end time must be after start time"
-    );
-  }
-});
-
-// Fast lookup of doctor's appointments
-appointmentSchema.index({
+// Find overlapping active holds efficiently.
+bookingHoldSchema.index({
   clinicId: 1,
   doctorId: 1,
-  startAt: 1,
-  status: 1,
-});
-
-// Efficient clinic dashboard queries
-appointmentSchema.index({
-  clinicId: 1,
   status: 1,
   startAt: 1,
+  endAt: 1,
+  expiresAt: 1,
 });
 
-const Appointment = mongoose.model(
-  "Appointment",
-  appointmentSchema
+// Prevent associating one payment order with multiple holds.
+bookingHoldSchema.index(
+  { paymentOrderId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      paymentOrderId: { $type: "string" },
+    },
+  }
 );
 
-export default Appointment;
+const BookingHold = mongoose.model(
+  "BookingHold",
+  bookingHoldSchema
+);
+
+export default BookingHold;

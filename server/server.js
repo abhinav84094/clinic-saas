@@ -9,6 +9,9 @@ import doctorRoutes from './routes/doctorRoutes.js';
 import publicClinicRoutes from "./routes/publicClinicRoutes.js"
 import serviceRoutes from "./routes/serviceRoutes.js";
 import doctorServiceRoutes from "./routes/doctorServiceRoutes.js";
+import scheduleRoutes from "./routes/scheduleRoutes.js";
+
+
 
 const app = express();
 
@@ -24,6 +27,7 @@ app.use("/api/clinics/:clinicId/doctors", doctorRoutes);
 app.use("/api/public/clinics", publicClinicRoutes);
 app.use("/api/clinics/:clinicId/services",serviceRoutes);
 app.use("/api/clinics/:clinicId/doctor-services",doctorServiceRoutes);
+app.use("/api/clinics/:clinicId/schedules",  scheduleRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
