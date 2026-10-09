@@ -31,8 +31,8 @@ const verifyGoogleToken = async (credential) => {
   const email = payload.email.trim().toLowerCase();
   const domain = email.split("@")[1];
 
-  // Google is authoritative for Gmail accounts and
-  // Google Workspace accounts belonging to their hd domain.
+  // Google is authoritative for Gmail and matching
+  // Google Workspace hosted domains.
   const emailIsAuthoritative =
     domain === "gmail.com" ||
     domain === "googlemail.com" ||
@@ -49,7 +49,7 @@ const verifyGoogleToken = async (credential) => {
   };
 };
 
-// Same cookie and user response as existing Google login.
+// Create session and return authenticated user.
 const issueLogin = (res, user) => {
   const token = generateToken(
     user._id,
@@ -98,22 +98,30 @@ export const googleLogin = async (req, res) => {
       }
 
       if (!linkedUser.emailVerified) {
-        return res.status(403).json({
-          success: false,
-          message: "Please verify your account email first",
-        });
+        if (!googleUser.emailIsAuthoritative) {
+          return res.status(403).json({
+            success: false,
+            message: "Please verify your account email first",
+          });
+        }
+
+        linkedUser.emailVerified = true;
+        linkedUser.emailVerificationOtpHash = undefined;
+        linkedUser.emailVerificationExpiresAt = undefined;
+        linkedUser.emailVerificationLastSentAt = undefined;
+
+        await linkedUser.save();
       }
 
       return issueLogin(res, linkedUser);
     }
 
-    // Case 2: User registered earlier using email/password.
+    // Case 2: Existing email/password account.
     const existingUser = await User.findOne({
       email: googleUser.email,
     });
 
     if (existingUser) {
-      // Do not overwrite an account linked to another Google ID.
       if (existingUser.googleId) {
         return res.status(409).json({
           success: false,
@@ -121,8 +129,8 @@ export const googleLogin = async (req, res) => {
         });
       }
 
-      // A verified Google email alone is not sufficient
-      // proof for arbitrary third-party email domains.
+      // Do not allow automatic account takeover
+      // through an arbitrary third-party email address.
       if (!googleUser.emailIsAuthoritative) {
         return res.status(403).json({
           success: false,
@@ -131,20 +139,23 @@ export const googleLogin = async (req, res) => {
         });
       }
 
+      // Google's verified identity is sufficient
+      // for authoritative Gmail / Workspace emails.
       if (!existingUser.emailVerified) {
-        return res.status(403).json({
-          success: false,
-          message: "Please verify your account email first",
-        });
+        existingUser.emailVerified = true;
+        existingUser.emailVerificationOtpHash = undefined;
+        existingUser.emailVerificationExpiresAt = undefined;
+        existingUser.emailVerificationLastSentAt = undefined;
+
+        await existingUser.save();
       }
 
-      // Existing account, existing role, existing data.
-      // No new account and no additional password screen.
+      // Preserve existing user ID, role and data.
       return issueLogin(res, existingUser);
     }
 
     // Case 3: New Google user.
-    // Frontend opens the registration/password setup page.
+    // Redirect to registration/password setup.
     return res.status(200).json({
       success: true,
       requiresPassword: true,

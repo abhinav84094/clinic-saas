@@ -143,31 +143,44 @@ export default function RegisterPage() {
   };
 
   const inputClass =
-    "min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-sm";
+    "block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60";
+
+  const iconClass =
+    "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400";
+
+  const toggleClass =
+    "absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500";
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-6 sm:px-6 sm:py-10">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-        <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white">
-            <Stethoscope size={28} aria-hidden="true" />
+    <main className="flex min-h-screen min-h-dvh w-full min-w-0 items-start justify-center overflow-x-hidden bg-slate-50 px-3 py-5 sm:items-center sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <div className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-slate-200 bg-white px-4 py-6 shadow-sm min-[375px]:px-5 sm:px-8 sm:py-8">
+        <div className="mb-6 text-center sm:mb-7">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white sm:h-14 sm:w-14">
+            <Stethoscope
+              size={26}
+              aria-hidden="true"
+              className="sm:h-7 sm:w-7"
+            />
           </div>
 
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 min-[375px]:text-2xl sm:text-3xl">
             {isGoogleRegistration
               ? "Complete Registration"
               : "Create Your Account"}
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">
             {isGoogleRegistration
               ? "Set a password for your Google account"
               : "Start managing your clinic in one place"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+        <form
+          onSubmit={handleSubmit}
+          className="w-full min-w-0 space-y-4"
+        >
+          <div className="w-full min-w-0">
             <label
               htmlFor="name"
               className="mb-2 block text-sm font-medium text-slate-700"
@@ -175,11 +188,11 @@ export default function RegisterPage() {
               Full Name
             </label>
 
-            <div className="relative">
+            <div className="relative w-full min-w-0">
               <UserRound
                 size={18}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                className={iconClass}
               />
 
               <input
@@ -198,7 +211,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label
               htmlFor="email"
               className="mb-2 block text-sm font-medium text-slate-700"
@@ -206,11 +219,11 @@ export default function RegisterPage() {
               Email Address
             </label>
 
-            <div className="relative">
+            <div className="relative w-full min-w-0">
               <Mail
                 size={18}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                className={iconClass}
               />
 
               <input
@@ -228,7 +241,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label
               htmlFor="password"
               className="mb-2 block text-sm font-medium text-slate-700"
@@ -236,11 +249,11 @@ export default function RegisterPage() {
               Password
             </label>
 
-            <div className="relative">
+            <div className="relative w-full min-w-0">
               <Lock
                 size={18}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                className={iconClass}
               />
 
               <input
@@ -265,18 +278,19 @@ export default function RegisterPage() {
                 aria-label={
                   showPassword ? "Hide password" : "Show password"
                 }
-                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-700"
+                aria-pressed={showPassword}
+                className={toggleClass}
               >
                 {showPassword ? (
-                  <EyeOff size={18} />
+                  <EyeOff size={18} aria-hidden="true" />
                 ) : (
-                  <Eye size={18} />
+                  <Eye size={18} aria-hidden="true" />
                 )}
               </button>
             </div>
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label
               htmlFor="confirmPassword"
               className="mb-2 block text-sm font-medium text-slate-700"
@@ -284,11 +298,11 @@ export default function RegisterPage() {
               Confirm Password
             </label>
 
-            <div className="relative">
+            <div className="relative w-full min-w-0">
               <Lock
                 size={18}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                className={iconClass}
               />
 
               <input
@@ -317,12 +331,13 @@ export default function RegisterPage() {
                     ? "Hide password"
                     : "Show password"
                 }
-                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-700"
+                aria-pressed={showConfirmPassword}
+                className={toggleClass}
               >
                 {showConfirmPassword ? (
-                  <EyeOff size={18} />
+                  <EyeOff size={18} aria-hidden="true" />
                 ) : (
-                  <Eye size={18} />
+                  <Eye size={18} aria-hidden="true" />
                 )}
               </button>
             </div>
@@ -331,12 +346,14 @@ export default function RegisterPage() {
           {error && (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              className="flex min-w-0 items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
             >
               <AlertCircle
                 size={18}
                 className="mt-0.5 shrink-0"
+                aria-hidden="true"
               />
+
               <span className="min-w-0 break-words">
                 {error}
               </span>
@@ -346,13 +363,14 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-base"
           >
             {loading ? (
               <>
                 <LoaderCircle
                   size={18}
-                  className="animate-spin"
+                  className="shrink-0 animate-spin"
+                  aria-hidden="true"
                 />
                 Creating Account...
               </>
@@ -361,17 +379,22 @@ export default function RegisterPage() {
                 {isGoogleRegistration
                   ? "Complete Registration"
                   : "Create Account"}
-                <ArrowRight size={18} />
+
+                <ArrowRight
+                  size={18}
+                  className="shrink-0"
+                  aria-hidden="true"
+                />
               </>
             )}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
+        <p className="mt-5 break-words text-center text-sm leading-relaxed text-slate-500 sm:mt-6">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="font-semibold text-blue-600 hover:underline"
+            className="font-semibold text-blue-600 hover:underline focus-visible:outline-2 focus-visible:outline-blue-500"
           >
             Sign In
           </Link>
