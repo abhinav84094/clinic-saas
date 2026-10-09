@@ -1,8 +1,10 @@
+
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -17,14 +19,16 @@ export function AuthProvider({ children }) {
   const refreshUser = useCallback(async () => {
     try {
       const { data } = await api.get("/auth/me");
-      const authenticatedUser = data.success ? data.user : null;
+
+      const authenticatedUser =
+        data.success && data.user ? data.user : null;
 
       setUser(authenticatedUser);
       return authenticatedUser;
     } catch (error) {
       setUser(null);
 
-      if (error.response && error.response.status !== 401) {
+      if (error.response?.status !== 401) {
         console.error("Session verification failed:", error);
       }
 
@@ -38,7 +42,16 @@ export function AuthProvider({ children }) {
     refreshUser();
   }, [refreshUser]);
 
-  const login = async ({ email, password }) => {
+  const setAuthenticatedUser = useCallback((authenticatedUser) => {
+    if (!authenticatedUser?.id) {
+      throw new Error("Invalid authenticated user");
+    }
+
+    setUser(authenticatedUser);
+    setLoading(false);
+  }, []);
+
+  const login = useCallback(async ({ email, password }) => {
     const { data } = await api.post("/auth/login", {
       email: email.trim().toLowerCase(),
       password,
@@ -50,24 +63,35 @@ export function AuthProvider({ children }) {
 
     setUser(data.user);
     return data.user;
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await api.post("/auth/logout");
     setUser(null);
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthenticated: Boolean(user),
+      login,
+      logout,
+      refreshUser,
+      setAuthenticatedUser,
+    }),
+    [
+      user,
+      loading,
+      login,
+      logout,
+      refreshUser,
+      setAuthenticatedUser,
+    ]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated: Boolean(user),
-        login,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

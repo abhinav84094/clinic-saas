@@ -1,6 +1,11 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
 import {
   Stethoscope,
   UserRound,
@@ -12,20 +17,35 @@ import {
   LoaderCircle,
   AlertCircle,
 } from "lucide-react";
+
 import api from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { refreshUser } = useAuth();
+
+  const googleCredential =
+    location.state?.googleCredential || null;
+
+  const isGoogleRegistration = Boolean(googleCredential);
 
   const [form, setForm] = useState({
-    name: "",
-    email: "",
+    name: isGoogleRegistration
+      ? location.state?.name || ""
+      : "",
+    email: isGoogleRegistration
+      ? location.state?.email || ""
+      : "",
     password: "",
     confirmPassword: "",
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -67,6 +87,34 @@ export default function RegisterPage() {
     setError("");
 
     try {
+      if (isGoogleRegistration) {
+        const { data } = await api.post(
+          "/auth/google/complete-signup",
+          {
+            credential: googleCredential,
+            password: form.password,
+            confirmPassword: form.confirmPassword,
+          }
+        );
+
+        if (!data.success || !data.user) {
+          throw new Error(
+            data.message || "Google registration failed."
+          );
+        }
+
+        const authenticatedUser = await refreshUser();
+
+        if (!authenticatedUser) {
+          throw new Error(
+            "Account created, but session could not be restored. Please sign in."
+          );
+        }
+
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
       const { data } = await api.post("/auth/register", {
         name,
         email,
@@ -74,7 +122,9 @@ export default function RegisterPage() {
       });
 
       if (!data.success) {
-        throw new Error(data.message || "Registration failed.");
+        throw new Error(
+          data.message || "Registration failed."
+        );
       }
 
       navigate("/verify-email", {
@@ -104,25 +154,34 @@ export default function RegisterPage() {
           </div>
 
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Create Your Account
+            {isGoogleRegistration
+              ? "Complete Registration"
+              : "Create Your Account"}
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Start managing your clinic in one place
+            {isGoogleRegistration
+              ? "Set a password for your Google account"
+              : "Start managing your clinic in one place"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="name"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
               Full Name
             </label>
+
             <div className="relative">
               <UserRound
                 size={18}
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
+
               <input
                 id="name"
                 name="name"
@@ -133,22 +192,27 @@ export default function RegisterPage() {
                 autoComplete="name"
                 maxLength={100}
                 required
-                disabled={loading}
+                disabled={loading || isGoogleRegistration}
                 className={inputClass}
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
               Email Address
             </label>
+
             <div className="relative">
               <Mail
                 size={18}
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
+
               <input
                 id="email"
                 name="email"
@@ -158,22 +222,27 @@ export default function RegisterPage() {
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
-                disabled={loading}
+                disabled={loading || isGoogleRegistration}
                 className={inputClass}
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
               Password
             </label>
+
             <div className="relative">
               <Lock
                 size={18}
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
+
               <input
                 id="password"
                 name="password"
@@ -187,72 +256,111 @@ export default function RegisterPage() {
                 disabled={loading}
                 className={inputClass}
               />
+
               <button
                 type="button"
-                onClick={() => setShowPassword((previous) => !previous)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700"
+                onClick={() =>
+                  setShowPassword((previous) => !previous)
+                }
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
+                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-700"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? (
+                  <EyeOff size={18} />
+                ) : (
+                  <Eye size={18} />
+                )}
               </button>
             </div>
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="confirmPassword"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
               Confirm Password
             </label>
+
             <div className="relative">
               <Lock
                 size={18}
                 aria-hidden="true"
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
+
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
+                type={
+                  showConfirmPassword ? "text" : "password"
+                }
                 value={form.confirmPassword}
                 onChange={handleChange}
                 placeholder="Re-enter your password"
                 autoComplete="new-password"
+                minLength={8}
                 required
                 disabled={loading}
                 className={inputClass}
               />
+
               <button
                 type="button"
-                onClick={() => setShowConfirmPassword((previous) => !previous)}
-                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                aria-pressed={showConfirmPassword}
-                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700"
+                onClick={() =>
+                  setShowConfirmPassword((previous) => !previous)
+                }
+                aria-label={
+                  showConfirmPassword
+                    ? "Hide password"
+                    : "Show password"
+                }
+                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-700"
               >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showConfirmPassword ? (
+                  <EyeOff size={18} />
+                ) : (
+                  <Eye size={18} />
+                )}
               </button>
             </div>
           </div>
 
           {error && (
-            <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <AlertCircle size={18} className="mt-0.5 shrink-0" />
-              <span className="min-w-0 break-words">{error}</span>
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            >
+              <AlertCircle
+                size={18}
+                className="mt-0.5 shrink-0"
+              />
+              <span className="min-w-0 break-words">
+                {error}
+              </span>
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {loading ? (
               <>
-                <LoaderCircle size={18} className="animate-spin" />
+                <LoaderCircle
+                  size={18}
+                  className="animate-spin"
+                />
                 Creating Account...
               </>
             ) : (
               <>
-                Create Account
+                {isGoogleRegistration
+                  ? "Complete Registration"
+                  : "Create Account"}
                 <ArrowRight size={18} />
               </>
             )}
@@ -261,7 +369,10 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-slate-500">
           Already have an account?{" "}
-          <Link to="/login" className="font-semibold text-blue-600 hover:underline">
+          <Link
+            to="/login"
+            className="font-semibold text-blue-600 hover:underline"
+          >
             Sign In
           </Link>
         </p>

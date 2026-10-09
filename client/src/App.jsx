@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+
 import {
   BrowserRouter,
   Routes,
@@ -22,10 +23,6 @@ import { useAuth } from "./context/AuthContext";
 import ProtectedRoute, {
   AuthLoadingScreen,
 } from "./components/shared/ProtectedRoute";
-
-// ================================
-// DASHBOARD
-// ================================
 
 function DashboardPage() {
   const { user, logout } = useAuth();
@@ -98,17 +95,9 @@ function DashboardPage() {
   );
 }
 
-// ================================
-// PUBLIC CLINIC
-// ================================
-
 function PublicClinicPage() {
   return <h1>Public Clinic Website</h1>;
 }
-
-// ================================
-// GUEST ROUTE
-// ================================
 
 function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -117,22 +106,22 @@ function GuestRoute({ children }) {
     return <AuthLoadingScreen />;
   }
 
-  return isAuthenticated ? (
-    <Navigate to="/dashboard" replace />
-  ) : (
-    children
-  );
-}
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
-// ================================
-// GOOGLE PASSWORD SETUP PAGE
-// ================================
+  return children;
+}
 
 function GooglePasswordSetupPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { isAuthenticated, loading } = useAuth();
+  const {
+    isAuthenticated,
+    loading,
+    setAuthenticatedUser,
+  } = useAuth();
 
   const credential = location.state?.credential;
   const email = location.state?.email;
@@ -149,25 +138,24 @@ function GooglePasswordSetupPage() {
     return <Navigate to="/login" replace />;
   }
 
-  const handleComplete = () => {
-    // Backend has now created the user
-    // and issued the accessToken cookie.
-    // Reload so AuthProvider fetches /api/auth/me
-    // and updates its authentication state.
+  const handleComplete = async (user) => {
+    setAuthenticatedUser(user);
 
-    window.location.replace("/dashboard");
+    navigate("/dashboard", {
+      replace: true,
+    });
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h1 className="mb-2 text-2xl font-bold text-slate-900">
+    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+        <h1 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
           Complete Your Registration
         </h1>
 
-        <p className="mb-6 text-sm text-slate-600">
+        <p className="mb-6 mt-3 text-center text-sm leading-relaxed text-slate-500">
           Your Google account is verified.
-          Set a password to complete your registration.
+          Set a password to finish creating your account.
         </p>
 
         <GooglePasswordSetup
@@ -180,22 +168,14 @@ function GooglePasswordSetupPage() {
   );
 }
 
-// ================================
-// APP ROUTES
-// ================================
-
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ROOT */}
-
         <Route
           path="/"
           element={<Navigate to="/dashboard" replace />}
         />
-
-        {/* LOGIN */}
 
         <Route
           path="/login"
@@ -206,8 +186,6 @@ export default function App() {
           }
         />
 
-        {/* REGISTER */}
-
         <Route
           path="/register"
           element={
@@ -216,8 +194,6 @@ export default function App() {
             </GuestRoute>
           }
         />
-
-        {/* EMAIL VERIFICATION */}
 
         <Route
           path="/verify-email"
@@ -228,17 +204,10 @@ export default function App() {
           }
         />
 
-        {/* GOOGLE PASSWORD SETUP
-            Must remain outside ProtectedRoute
-            because account creation is not complete.
-        */}
-
         <Route
           path="/google/set-password"
           element={<GooglePasswordSetupPage />}
         />
-
-        {/* PROTECTED DASHBOARD */}
 
         <Route element={<ProtectedRoute />}>
           <Route
@@ -247,20 +216,16 @@ export default function App() {
           />
         </Route>
 
-        {/* PUBLIC CLINIC */}
-
         <Route
           path="/c/:slug"
           element={<PublicClinicPage />}
         />
 
-        {/* 404 */}
-
         <Route
           path="*"
           element={
             <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
-              <h1 className="text-2xl font-bold">
+              <h1 className="text-2xl font-bold text-slate-900">
                 404 — Page Not Found
               </h1>
 

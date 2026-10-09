@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -12,11 +13,12 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
+import GoogleAuthButton from "../../components/GoogleAuthButton";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, refreshUser } = useAuth();
 
   const [form, setForm] = useState({
     email: "",
@@ -27,19 +29,29 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const requestedPath = location.state?.from;
 
-    setForm((prev) => ({
-      ...prev,
+  const destination =
+    typeof requestedPath === "string" &&
+    requestedPath.startsWith("/") &&
+    !requestedPath.startsWith("//") &&
+    !requestedPath.startsWith("/\\")
+      ? requestedPath
+      : "/dashboard";
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setForm((previous) => ({
+      ...previous,
       [name]: value,
     }));
 
-    if (error) setError("");
+    setError("");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     if (loading) return;
 
@@ -49,15 +61,9 @@ export default function LoginPage() {
     try {
       await login(form);
 
-      const requestedPath = location.state?.from;
-      const destination =
-        typeof requestedPath === "string" &&
-        requestedPath.startsWith("/") &&
-        !requestedPath.startsWith("//")
-          ? requestedPath
-          : "/dashboard";
-
-      navigate(destination, { replace: true });
+      navigate(destination, {
+        replace: true,
+      });
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -67,6 +73,34 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = async () => {
+    const authenticatedUser = await refreshUser();
+
+    if (!authenticatedUser) {
+      throw new Error(
+        "Google sign-in succeeded, but your session could not be restored."
+      );
+    }
+
+    navigate(destination, {
+      replace: true,
+    });
+  };
+
+  const handleGoogleRegistration = ({
+    credential,
+    email,
+    name,
+  }) => {
+    navigate("/register", {
+      state: {
+        googleCredential: credential,
+        email,
+        name,
+      },
+    });
   };
 
   return (
@@ -148,7 +182,9 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
                 aria-pressed={showPassword}
                 className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500"
               >
@@ -171,7 +207,9 @@ export default function LoginPage() {
                 className="mt-0.5 shrink-0"
                 aria-hidden="true"
               />
-              <span className="min-w-0 break-words">{error}</span>
+              <span className="min-w-0 break-words">
+                {error}
+              </span>
             </div>
           )}
 
@@ -198,14 +236,26 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200" />
+          </div>
+
+          <div className="relative flex justify-center">
+            <span className="bg-white px-4 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
+        <GoogleAuthButton
+          onLogin={handleGoogleLogin}
+          onPasswordRequired={handleGoogleRegistration}
+        />
+
         <p className="mt-6 text-center text-sm text-slate-500">
-          Don't have an account?{" "}
-          <Link
-            to="/register"
-            className="font-semibold text-blue-600 hover:underline"
-          >
-            Create Account
-          </Link>
+          New to the platform?{" "}
+            Sign In by Google
         </p>
       </div>
     </main>
