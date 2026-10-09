@@ -30,8 +30,8 @@ import ServicesSetupPage from "./pages/ServicesSetupPage";
 import WebsiteSetupPage from "./pages/WebsiteSetup";
 import PublicClinicPage from "./pages/PublicClinicPage";
 
-
-
+import SubscriptionSetupPage from "./pages/SubscriptionSetupPage";
+import ReviewPublishPage from "./pages/ReviewPublishPage";
 
 
 
@@ -97,24 +97,7 @@ function GooglePasswordSetupPage() {
 }
 
 
-function WebsiteSetupPlaceholder() {
-  return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 p-5">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center">
-        <p className="text-sm font-semibold text-blue-600">
-          STEP 4 OF 6
-        </p>
-        <h1 className="mt-3 text-2xl font-bold text-slate-900">
-          Website Customization
-        </h1>
-        <p className="mt-3 text-sm text-slate-500">
-          Your services and availability have been saved.
-          The website template editor will be implemented next.
-        </p>
-      </div>
-    </main>
-  );
-}
+
 
 export default function App() {
   return (
@@ -185,8 +168,20 @@ export default function App() {
 
           <Route
             path="/clinics/:clinicId/website/setup"
-            element={<WebsiteSetupPlaceholder />}
+            element={<WebsiteSetupPage />}
           />
+
+          
+          <Route
+            path="/clinics/:clinicId/subscription/setup"
+            element={<SubscriptionSetupPage />}
+          />
+
+          <Route
+            path="/clinics/:clinicId/review"
+            element={<ReviewPublishPage />}
+          />
+
 
           <Route
             path="/dashboard/clinic/:clinicId"

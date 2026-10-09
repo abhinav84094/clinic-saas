@@ -1,21 +1,38 @@
+
 import { Router } from "express";
-import { getSlugAvailability, createClinicController, getMyClinics, getClinicProfile,
-    updateClinicProfileController
+
+import {
+  getSlugAvailability,
+  createClinicController,
+  getMyClinics,
+  getClinicProfile,
+  updateClinicProfileController,
 } from "../controllers/clinicController.js";
+
 import { protect } from "../middleware/authMiddleware.js";
 import { requireClinicAccess } from "../middleware/clinicAccessMiddleware.js";
+
 import {
   getPublishingReadinessController,
   publishClinicController,
 } from "../controllers/clinicPublishingController.js";
 
-import {  createPaymentOrder, verifyPaymentController} from "../controllers/subscriptionPaymentController.js";
+import {
+  createPaymentOrder,
+  verifyPaymentController,
+} from "../controllers/subscriptionPaymentController.js";
 
+import {
+  getSubscriptionSetupController,
+  updateBillingCycleController,
+} from "../controllers/subscriptionSetupController.js";
 
 const router = Router();
 
 router.get("/slug-availability", getSlugAvailability);
+
 router.post("/", protect, createClinicController);
+
 router.get("/my-clinics", protect, getMyClinics);
 
 router.get(
@@ -32,7 +49,6 @@ router.patch(
   updateClinicProfileController
 );
 
-
 router.get(
   "/:clinicId/publishing-readiness",
   protect,
@@ -47,6 +63,22 @@ router.post(
   publishClinicController
 );
 
+// Subscription setup
+router.get(
+  "/:clinicId/subscription",
+  protect,
+  requireClinicAccess(["owner"]),
+  getSubscriptionSetupController
+);
+
+router.patch(
+  "/:clinicId/subscription/billing-cycle",
+  protect,
+  requireClinicAccess(["owner"]),
+  updateBillingCycleController
+);
+
+// Existing Razorpay endpoints
 router.post(
   "/:clinicId/subscription/payment-order",
   protect,
@@ -60,6 +92,5 @@ router.post(
   requireClinicAccess(["owner"]),
   verifyPaymentController
 );
-
 
 export default router;
