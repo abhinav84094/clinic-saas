@@ -1,103 +1,86 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
+  Camera,
   CheckCircle2,
   LoaderCircle,
+  Pencil,
   Plus,
-  Stethoscope,
   UserRound,
   X,
 } from "lucide-react";
 
 import api from "../services/api";
 
-const initialForm = {
+const emptyForm = {
   name: "",
   specialization: "",
   qualifications: "",
   experienceYears: "",
   bio: "",
-  photoUrl: "",
 };
 
 const inputClass =
-  "mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500";
 
-function getErrorMessage(error) {
-  const errors = error.response?.data?.errors;
+const idOf = (doctor) => doctor?._id || doctor?.id;
 
-  const details = Array.isArray(errors)
-    ? errors
-        .map((item) => {
-          const field = item.field || item.path?.join(".");
-          return field
-            ? `${field}: ${item.message}`
-            : item.message;
-        })
-        .filter(Boolean)
-        .join("; ")
-    : "";
+function getError(error) {
+  const issues = error.response?.data?.errors;
 
-  return (
-    details ||
-    error.response?.data?.message ||
-    "Something went wrong. Please try again."
-  );
+  if (Array.isArray(issues) && issues.length) {
+    return issues.map((issue) => issue.message).join("; ");
+  }
+
+  return error.response?.data?.message ||
+    "Something went wrong. Please try again.";
 }
 
 export default function AddDoctorsPage() {
   const { clinicId } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   const [clinic, setClinic] = useState(null);
   const [doctors, setDoctors] = useState([]);
-  const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [existingPhoto, setExistingPhoto] = useState("");
 
-  const [showDoctorForm, setShowDoctorForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [busyDoctorId, setBusyDoctorId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadData = useCallback(async () => {
-    const [clinicResponse, doctorResponse] = await Promise.all([
-      api.get(`/clinics/${clinicId}`),
-      api.get(
-        `/clinics/${clinicId}/doctors?includeInactive=true`
-      ),
-    ]);
+  const load = useCallback(async () => {
+    const [clinicResponse, doctorsResponse] =
+      await Promise.all([
+        api.get(`/clinics/${clinicId}`),
+        api.get(
+          `/clinics/${clinicId}/doctors?includeInactive=true`
+        ),
+      ]);
 
     setClinic(clinicResponse.data.clinic);
-    setDoctors(doctorResponse.data.doctors || []);
+    setDoctors(doctorsResponse.data.doctors || []);
   }, [clinicId]);
 
   useEffect(() => {
     let active = true;
 
     async function initialize() {
-      setLoading(true);
-
       try {
-        const [clinicResponse, doctorResponse] =
-          await Promise.all([
-            api.get(`/clinics/${clinicId}`),
-            api.get(
-              `/clinics/${clinicId}/doctors?includeInactive=true`
-            ),
-          ]);
-
-        if (!active) return;
-
-        setClinic(clinicResponse.data.clinic);
-        setDoctors(doctorResponse.data.doctors || []);
+        setLoading(true);
+        await load();
       } catch (err) {
-        if (active) {
-          setError(getErrorMessage(err));
-        }
+        if (active) setError(getError(err));
       } finally {
         if (active) setLoading(false);
       }
@@ -108,36 +91,99 @@ export default function AddDoctorsPage() {
     return () => {
       active = false;
     };
-  }, [clinicId]);
+  }, [load]);
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview("");
+      return;
+    }
 
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
 
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
+
+  function resetForm() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setPhotoFile(null);
+    setExistingPhoto("");
+    setShowForm(false);
+  }
+
+  function openAdd() {
+    resetForm();
     setError("");
     setSuccess("");
+    setShowForm(true);
   }
 
-  function openDoctorForm() {
-    setForm(initialForm);
+  function openEdit(doctor) {
+    setEditingId(idOf(doctor));
+    setForm({
+      name: doctor.name || "",
+      specialization: doctor.specialization || "",
+      qualifications:
+        (doctor.qualifications || []).join(", "),
+      experienceYears:
+        doctor.experienceYears ?? "",
+      bio: doctor.bio || "",
+    });
+    setPhotoFile(null);
+    setExistingPhoto(doctor.photoUrl || "");
     setError("");
     setSuccess("");
-    setShowDoctorForm(true);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function closeDoctorForm() {
-    if (saving) return;
+  function selectPhoto(event) {
+    const file = event.target.files?.[0];
 
-    setForm(initialForm);
+    if (!file) return;
+
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(
+        file.type
+      )
+    ) {
+      setError("Choose a JPG, PNG or WebP image.");
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setError("Image must be smaller than 3 MB.");
+      return;
+    }
+
     setError("");
-    setShowDoctorForm(false);
+    setPhotoFile(file);
+    event.target.value = "";
   }
 
-  async function handleAddDoctor(event) {
+  async function uploadPhoto(doctorId) {
+    if (!photoFile) return;
+
+    const body = new FormData();
+    body.append("photo", photoFile);
+
+    const formData = new FormData();
+    formData.append("photo", photoFile, photoFile.name);
+
+    await api.post(
+    `/clinics/${clinicId}/doctors/${doctorId}/photo`,
+    formData,
+    {
+        headers: {
+        "Content-Type": undefined,
+        },
+    }
+    );
+  }
+
+  async function handleSave(event) {
     event.preventDefault();
 
     if (saving) return;
@@ -146,402 +192,456 @@ export default function AddDoctorsPage() {
     setError("");
     setSuccess("");
 
-    const qualifications = form.qualifications
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-
     const payload = {
       name: form.name.trim(),
-      qualifications,
-      ...(form.specialization.trim() && {
-        specialization: form.specialization.trim(),
-      }),
+      specialization: form.specialization.trim(),
+      qualifications: form.qualifications
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean),
+      bio: form.bio.trim(),
       ...(form.experienceYears !== "" && {
         experienceYears: Number(form.experienceYears),
       }),
-      ...(form.bio.trim() && {
-        bio: form.bio.trim(),
-      }),
-      ...(form.photoUrl.trim() && {
-        photoUrl: form.photoUrl.trim(),
-      }),
     };
 
+    let savedDoctorId = editingId;
+
     try {
-      await api.post(
-        `/clinics/${clinicId}/doctors`,
-        payload
-      );
+      if (editingId) {
+        await api.patch(
+          `/clinics/${clinicId}/doctors/${editingId}`,
+          payload
+        );
+      } else {
+        const response = await api.post(
+          `/clinics/${clinicId}/doctors`,
+          payload
+        );
 
-      await loadData();
+        savedDoctorId = idOf(response.data.doctor);
+      }
 
-      setForm(initialForm);
-      setShowDoctorForm(false);
-      setSuccess("Doctor added successfully.");
+      if (photoFile) {
+        try {
+          await uploadPhoto(savedDoctorId);
+        } catch (photoError) {
+          await load();
+          setEditingId(savedDoctorId);
+          setError(
+            "Doctor details saved, but photo upload failed: " +
+              getError(photoError)
+          );
+          return;
+        }
+      }
+
+      await load();
+      resetForm();
+      setSuccess("Doctor profile saved successfully.");
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getError(err));
     } finally {
       setSaving(false);
     }
   }
 
-  const activeDoctors = doctors.filter(
-    (doctor) => doctor.isActive
-  );
+  async function toggleStatus(doctor) {
+    const doctorId = idOf(doctor);
 
-  function handleContinue() {
-    if (activeDoctors.length === 0) {
-      setError(
-        "Add at least one active doctor to continue."
+    setBusyDoctorId(doctorId);
+    setError("");
+    setSuccess("");
+
+    try {
+      await api.patch(
+        `/clinics/${clinicId}/doctors/${doctorId}/status`,
+        { isActive: !doctor.isActive }
       );
-      return;
-    }
 
-    navigate(
-      `/clinics/${clinicId}/services/setup`
-    );
+      await load();
+
+      setSuccess(
+        doctor.isActive
+          ? "Doctor deactivated."
+          : "Doctor activated."
+      );
+    } catch (err) {
+      setError(getError(err));
+    } finally {
+      setBusyDoctorId("");
+    }
   }
+
+  const activeCount = doctors.filter(
+    (doctor) => doctor.isActive
+  ).length;
 
   if (loading) {
     return (
-      <main className="flex min-h-dvh items-center justify-center gap-2 text-slate-600">
-        <LoaderCircle
-          size={20}
-          className="animate-spin"
-        />
+      <main className="flex min-h-dvh items-center justify-center gap-2">
+        <LoaderCircle className="animate-spin" size={20} />
         Loading doctors...
       </main>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-3xl">
+    <main className="min-h-dvh bg-slate-50 px-4 py-8">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Link
-          to={`/clinics/${clinicId}/setup`}
-          className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
+          to={
+            clinic?.status === "draft"
+              ? `/clinics/${clinicId}/setup`
+              : `/dashboard/clinic/${clinicId}`
+          }
+          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
         >
           <ArrowLeft size={17} />
-          Clinic Details
+          {clinic?.status === "draft"
+            ? "Back to Clinic Setup"
+            : "Back to Dashboard"}
         </Link>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          <div className="mb-7">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <span className="rounded-xl bg-blue-50 p-3 text-blue-600">
-                <Stethoscope size={24} />
-              </span>
-
-              <span className="text-xs font-semibold text-blue-600">
-                STEP 2 OF 6
-              </span>
-            </div>
-
-            <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full w-2/6 rounded-full bg-blue-600" />
-            </div>
-
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              Add Doctors
+              Manage Doctors
             </h1>
-
             <p className="mt-2 text-sm text-slate-500">
-              {clinic?.name || "Your clinic"} — manage the
-              doctors who provide consultations.
+              {clinic?.name} · {activeCount} active doctors
             </p>
           </div>
 
-          {success && (
-            <p
-              role="status"
-              className="mb-5 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700"
+          {!showForm && (
+            <button
+              type="button"
+              onClick={openAdd}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
             >
-              <CheckCircle2 size={18} />
-              {success}
-            </p>
+              <Plus size={18} />
+              Add Doctor
+            </button>
           )}
+        </div>
 
-          {error && (
-            <p
-              role="alert"
-              className="mb-5 rounded-xl bg-red-50 p-3 text-sm text-red-700"
-            >
-              {error}
-            </p>
-          )}
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl bg-red-50 p-4 text-sm text-red-700"
+          >
+            {error}
+          </p>
+        )}
 
-          <section>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Your Doctors
+        {success && (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-xl bg-green-50 p-4 text-sm text-green-700"
+          >
+            <CheckCircle2 size={18} />
+            {success}
+          </p>
+        )}
+
+        {showForm && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-bold">
+                {editingId ? "Edit Doctor" : "Add Doctor"}
               </h2>
 
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                {activeDoctors.length} Active
-              </span>
-            </div>
-
-            {doctors.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 p-7 text-center">
-                <UserRound
-                  size={32}
-                  className="mx-auto text-slate-400"
-                />
-
-                <p className="mt-3 font-medium text-slate-700">
-                  No doctors added yet
-                </p>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Add your first doctor to continue
-                  setting up your clinic.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {doctors.map((doctor) => (
-                  <article
-                    key={doctor._id || doctor.id}
-                    className="flex min-w-0 gap-4 rounded-2xl border border-slate-200 p-4"
-                  >
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-50 text-blue-600">
-                      {doctor.photoUrl ? (
-                        <img
-                          src={doctor.photoUrl}
-                          alt={doctor.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <UserRound size={25} />
-                      )}
-                    </div>
-
-                    <div className="min-w-0">
-                      <h3 className="break-words font-semibold text-slate-900">
-                        {doctor.name}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-slate-500">
-                        {doctor.specialization ||
-                          "Specialization not set"}
-                      </p>
-
-                      {doctor.qualifications?.length > 0 && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          {doctor.qualifications.join(", ")}
-                        </p>
-                      )}
-
-                      {Number.isFinite(
-                        doctor.experienceYears
-                      ) && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          {doctor.experienceYears} years
-                          of experience
-                        </p>
-                      )}
-
-                      <span
-                        className={`mt-3 inline-block rounded-full px-3 py-1 text-xs font-medium ${
-                          doctor.isActive
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {doctor.isActive
-                          ? "Active"
-                          : "Inactive"}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {clinic?.status === "draft" && (
-            <section className="mt-7 border-t border-slate-100 pt-6">
-              {!showDoctorForm ? (
-                <button
-                  type="button"
-                  onClick={openDoctorForm}
-                  className="flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50 p-5 text-blue-700 transition hover:border-blue-500 hover:bg-blue-100"
-                >
-                  <Plus size={24} />
-                  <span className="font-semibold">
-                    {doctors.length === 0
-                      ? "Add Your First Doctor"
-                      : "Add Another Doctor"}
-                  </span>
-                </button>
-              ) : (
-                <>
-                  <div className="mb-5 flex items-center justify-between gap-3">
-                    <h2 className="text-lg font-semibold text-slate-900">
-                      Add a Doctor
-                    </h2>
-
-                    <button
-                      type="button"
-                      onClick={closeDoctorForm}
-                      disabled={saving}
-                      className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                    >
-                      <X size={17} />
-                      Cancel
-                    </button>
-                  </div>
-
-                  <form
-                    onSubmit={handleAddDoctor}
-                    className="grid gap-4 sm:grid-cols-2"
-                  >
-                    <label className="text-sm font-medium text-slate-700">
-                      Doctor Name *
-
-                      <input
-                        name="name"
-                        value={form.name}
-                        onChange={handleChange}
-                        placeholder="Dr. Rahul Sharma"
-                        required
-                        minLength={2}
-                        maxLength={120}
-                        className={inputClass}
-                      />
-                    </label>
-
-                    <label className="text-sm font-medium text-slate-700">
-                      Specialization
-
-                      <input
-                        name="specialization"
-                        value={form.specialization}
-                        onChange={handleChange}
-                        placeholder="General Physician"
-                        maxLength={250}
-                        className={inputClass}
-                      />
-                    </label>
-
-                    <label className="text-sm font-medium text-slate-700">
-                      Qualifications
-
-                      <input
-                        name="qualifications"
-                        value={form.qualifications}
-                        onChange={handleChange}
-                        placeholder="MBBS, MD"
-                        className={inputClass}
-                      />
-
-                      <span className="mt-1 block text-xs font-normal text-slate-500">
-                        Separate qualifications with commas.
-                      </span>
-                    </label>
-
-                    <label className="text-sm font-medium text-slate-700">
-                      Years of Experience
-
-                      <input
-                        name="experienceYears"
-                        type="number"
-                        min={0}
-                        max={70}
-                        step={1}
-                        value={form.experienceYears}
-                        onChange={handleChange}
-                        placeholder="5"
-                        className={inputClass}
-                      />
-                    </label>
-
-                    <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-                      Photo URL
-
-                      <input
-                        name="photoUrl"
-                        type="url"
-                        value={form.photoUrl}
-                        onChange={handleChange}
-                        placeholder="https://example.com/doctor.jpg"
-                        className={inputClass}
-                      />
-                    </label>
-
-                    <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-                      About the Doctor
-
-                      <textarea
-                        name="bio"
-                        value={form.bio}
-                        onChange={handleChange}
-                        rows={3}
-                        maxLength={10000}
-                        placeholder="Brief professional introduction"
-                        className={`${inputClass} resize-y`}
-                      />
-                    </label>
-
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700 disabled:opacity-60 sm:col-span-2"
-                    >
-                      {saving ? (
-                        <>
-                          <LoaderCircle
-                            size={18}
-                            className="animate-spin"
-                          />
-                          Adding Doctor...
-                        </>
-                      ) : (
-                        <>
-                          <Plus size={18} />
-                          Add Doctor
-                        </>
-                      )}
-                    </button>
-                  </form>
-                </>
-              )}
-            </section>
-          )}
-
-          <div className="mt-7 border-t border-slate-100 pt-6">
-            {activeDoctors.length > 0 && (
-              <p className="mb-4 flex items-center gap-2 text-sm text-emerald-700">
-                <CheckCircle2 size={18} />
-                Doctor requirement completed.
-              </p>
-            )}
-
-            {clinic?.status === "draft" ? (
               <button
                 type="button"
-                onClick={handleContinue}
-                disabled={
-                  activeDoctors.length === 0 ||
-                  saving
-                }
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={resetForm}
+                disabled={saving}
+                aria-label="Close form"
+                className="rounded-lg p-2 hover:bg-slate-100"
               >
-                Continue to Services & Availability
-                <ArrowRight size={18} />
+                <X size={20} />
               </button>
-            ) : (
-              <Link
-                to={`/dashboard/clinic/${clinicId}`}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
-              >
-                Return to Dashboard
-                <ArrowRight size={17} />
-              </Link>
-            )}
-          </div>
-        </div>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-5">
+              <div className="flex flex-wrap items-center gap-5 rounded-xl bg-slate-50 p-4">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white">
+                  {photoPreview || existingPhoto ? (
+                    <img
+                      src={photoPreview || existingPhoto}
+                      alt="Doctor preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <UserRound
+                      size={38}
+                      className="text-slate-400"
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <p className="font-semibold">
+                    Doctor Profile Photo
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    JPG, PNG or WebP · Maximum 3 MB
+                  </p>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={selectPhoto}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fileInputRef.current?.click()
+                    }
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
+                  >
+                    <Camera size={17} />
+                    {photoPreview || existingPhoto
+                      ? "Change Photo"
+                      : "Choose Photo"}
+                  </button>
+
+                  {photoFile && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoFile(null)}
+                      className="ml-3 text-sm text-red-600"
+                    >
+                      Cancel selection
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-semibold">
+                  Doctor Name *
+                  <input
+                    required
+                    minLength={2}
+                    maxLength={120}
+                    value={form.name}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        name: event.target.value,
+                      })
+                    }
+                    placeholder="Dr. Rahul Sharma"
+                    className={inputClass}
+                  />
+                </label>
+
+                <label className="text-sm font-semibold">
+                  Specialization
+                  <input
+                    maxLength={250}
+                    value={form.specialization}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        specialization: event.target.value,
+                      })
+                    }
+                    placeholder="Cardiologist"
+                    className={inputClass}
+                  />
+                </label>
+
+                <label className="text-sm font-semibold">
+                  Qualifications
+                  <input
+                    value={form.qualifications}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        qualifications: event.target.value,
+                      })
+                    }
+                    placeholder="MBBS, MD"
+                    className={inputClass}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-slate-500">
+                    Separate qualifications with commas.
+                  </span>
+                </label>
+
+                <label className="text-sm font-semibold">
+                  Years of Experience
+                  <input
+                    type="number"
+                    min={0}
+                    max={70}
+                    step={1}
+                    value={form.experienceYears}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        experienceYears: event.target.value,
+                      })
+                    }
+                    className={inputClass}
+                  />
+                </label>
+
+                <label className="text-sm font-semibold sm:col-span-2">
+                  About Doctor
+                  <textarea
+                    rows={4}
+                    maxLength={10000}
+                    value={form.bio}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        bio: event.target.value,
+                      })
+                    }
+                    placeholder="Professional introduction"
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={resetForm}
+                  className="rounded-xl border border-slate-200 px-5 py-3 font-semibold"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white disabled:opacity-50"
+                >
+                  {saving && (
+                    <LoaderCircle
+                      size={18}
+                      className="animate-spin"
+                    />
+                  )}
+                  {saving ? "Saving..." : "Save Doctor"}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {doctors.map((doctor) => (
+            <article
+              key={idOf(doctor)}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-50">
+                  {doctor.photoUrl ? (
+                    <img
+                      src={doctor.photoUrl}
+                      alt={doctor.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <UserRound
+                      size={28}
+                      className="text-blue-500"
+                    />
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900">
+                    {doctor.name}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {doctor.specialization || "Doctor"}
+                  </p>
+                  <span
+                    className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                      doctor.isActive
+                        ? "bg-green-50 text-green-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {doctor.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              </div>
+
+              {doctor.qualifications?.length > 0 && (
+                <p className="mt-4 text-sm text-slate-500">
+                  {doctor.qualifications.join(", ")}
+                </p>
+              )}
+
+              <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => openEdit(doctor)}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700"
+                >
+                  <Pencil size={15} />
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  disabled={busyDoctorId === idOf(doctor)}
+                  onClick={() => toggleStatus(doctor)}
+                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                >
+                  {busyDoctorId === idOf(doctor)
+                    ? "Updating..."
+                    : doctor.isActive
+                      ? "Deactivate"
+                      : "Activate"}
+                </button>
+              </div>
+            </article>
+          ))}
+
+          {!doctors.length && (
+            <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 sm:col-span-2">
+              No doctors yet. Add your first doctor.
+            </div>
+          )}
+        </section>
+
+        {clinic?.status === "draft" && (
+          <button
+            type="button"
+            disabled={!activeCount}
+            onClick={() =>
+              navigate(
+                `/clinics/${clinicId}/services/setup`
+              )
+            }
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white disabled:opacity-50"
+          >
+            Continue to Services & Availability
+            <ArrowRight size={18} />
+          </button>
+        )}
+
+        {clinic?.status !== "draft" && (
+          <Link
+            to={`/dashboard/clinic/${clinicId}`}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
+          >
+            <ArrowLeft size={17} />
+            Return to Dashboard
+          </Link>
+        )}
       </div>
     </main>
   );
