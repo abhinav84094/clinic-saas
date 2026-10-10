@@ -587,11 +587,13 @@ export const createPlanChangeOrder = async ({
         "A previous payment requires support review"
       );
     }
-
+    
     const records = await SubscriptionPayment.find({
       clinicId,
       subscriptionId: subscription._id,
-      status: "created",
+      status: {
+        $in: ["created", "abandoned", "superseded"],
+      },
     }).sort({ createdAt: -1 });
 
     let reusable = null;

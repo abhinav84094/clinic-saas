@@ -22,6 +22,7 @@ export const createPaymentOrder = async (req, res, next) => {
   }
 };
 
+
 export const verifyPaymentController = async (req, res, next) => {
   try {
     const {
@@ -38,6 +39,16 @@ export const verifyPaymentController = async (req, res, next) => {
       razorpaySignature: razorpay_signature,
     });
 
+    // Payment captured but subscription not activated
+    if (result.requiresReview) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Payment captured, but subscription activation requires support review.",
+        subscription: result,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: result.alreadyProcessed
@@ -49,6 +60,8 @@ export const verifyPaymentController = async (req, res, next) => {
     next(error);
   }
 };
+
+
 
 export const reconcilePaymentController = async (
   req,
@@ -73,6 +86,16 @@ export const reconcilePaymentController = async (
       razorpayOrderId: razorpay_order_id,
     });
 
+    // Payment captured but subscription not activated
+    if (result.requiresReview) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Payment captured, but subscription activation requires support review.",
+        subscription: result,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: result.alreadyProcessed
@@ -84,6 +107,7 @@ export const reconcilePaymentController = async (
     next(error);
   }
 };
+
 
 
 

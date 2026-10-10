@@ -3,13 +3,7 @@ import ClinicSubscription from "../models/ClinicSubscription.js";
 
 // Read prices from environment variables
 const readPrice = (key) => {
-  const raw = process.env[key];
 
-  if (!raw || !/^\d+$/.test(raw)) {
-    throw new Error(
-      `Invalid or missing environment variable: ${key}`
-    );
-  }
 
   const price = Number(raw);
 
@@ -21,11 +15,12 @@ const readPrice = (key) => {
 };
 
 // Subscription plan configuration
+
 export const SUBSCRIPTION_PLANS = Object.freeze({
   basic: {
     prices: {
-      monthly: readPrice("PLAN_BASIC_MONTHLY"),
-      yearly: readPrice("PLAN_BASIC_YEARLY"),
+      monthly: Number(process.env.PLAN_BASIC_MONTHLY || 49),
+      yearly: Number(process.env.PLAN_BASIC_YEARLY || 499),
     },
     limits: {
       monthly: 0,
@@ -35,8 +30,8 @@ export const SUBSCRIPTION_PLANS = Object.freeze({
 
   starter: {
     prices: {
-      monthly: readPrice("PLAN_STARTER_MONTHLY"),
-      yearly: readPrice("PLAN_STARTER_YEARLY"),
+      monthly: Number(process.env.PLAN_STARTER_MONTHLY || 199),
+      yearly: Number(process.env.PLAN_STARTER_YEARLY || 1999),
     },
     limits: {
       monthly: 300,
@@ -46,8 +41,8 @@ export const SUBSCRIPTION_PLANS = Object.freeze({
 
   growth: {
     prices: {
-      monthly: readPrice("PLAN_GROWTH_MONTHLY"),
-      yearly: readPrice("PLAN_GROWTH_YEARLY"),
+      monthly: Number(process.env.PLAN_GROWTH_MONTHLY || 299),
+      yearly: Number(process.env.PLAN_GROWTH_YEARLY || 2999),
     },
     limits: {
       monthly: 500,
@@ -57,8 +52,8 @@ export const SUBSCRIPTION_PLANS = Object.freeze({
 
   unlimited: {
     prices: {
-      monthly: readPrice("PLAN_UNLIMITED_MONTHLY"),
-      yearly: readPrice("PLAN_UNLIMITED_YEARLY"),
+      monthly: Number(process.env.PLAN_UNLIMITED_MONTHLY || 599),
+      yearly: Number(process.env.PLAN_UNLIMITED_YEARLY || 5999),
     },
     limits: {
       monthly: null,
