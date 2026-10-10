@@ -18,6 +18,7 @@ import DashboardPage from "./pages/DashboardPage";
 
 import GooglePasswordSetup from "./components/GooglePasswordSetup";
 import { useAuth } from "./context/AuthContext";
+
 import ProtectedRoute, {
   AuthLoadingScreen,
 } from "./components/shared/ProtectedRoute";
@@ -41,7 +42,9 @@ import RenewPlanPage from "./pages/dashboard/RenewPlanPage";
 function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
-  if (loading) return <AuthLoadingScreen />;
+  if (loading) {
+    return <AuthLoadingScreen />;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/my-clinics" replace />;
@@ -63,7 +66,9 @@ function GooglePasswordSetupPage() {
   const credential = location.state?.credential;
   const email = location.state?.email;
 
-  if (loading) return <AuthLoadingScreen />;
+  if (loading) {
+    return <AuthLoadingScreen />;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/my-clinics" replace />;
@@ -71,7 +76,10 @@ function GooglePasswordSetupPage() {
 
   const handleComplete = async (user) => {
     setAuthenticatedUser(user);
-    navigate("/my-clinics", { replace: true });
+
+    navigate("/my-clinics", {
+      replace: true,
+    });
   };
 
   return (
@@ -115,10 +123,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Home */}
         <Route
           path="/"
           element={
-            <Navigate to="/my-clinics" replace />
+            <Navigate
+              to="/my-clinics"
+              replace
+            />
           }
         />
 
@@ -157,6 +169,7 @@ export default function App() {
 
         {/* Protected application routes */}
         <Route element={<ProtectedRoute />}>
+          {/* My Clinics */}
           <Route
             path="/my-clinics"
             element={<MyClinicsPage />}
@@ -198,48 +211,56 @@ export default function App() {
             element={<ReviewPublishPage />}
           />
 
-          
-          {/* Unified clinic owner dashboard */}
+          {/* Clinic Dashboard */}
           <Route
             path="/dashboard/clinic/:clinicId"
             element={<ClinicDashboardShell />}
           >
+            {/* Overview */}
             <Route
               index
               element={<DashboardPage />}
             />
 
+            {/* Clinic Profile */}
             <Route
               path="profile"
               element={<ClinicProfilePage />}
             />
 
+            {/* Doctors */}
             <Route
               path="doctors"
               element={<AddDoctorsPage />}
             />
 
+            {/* Services */}
             <Route
               path="services"
               element={<ServicesManagementPage />}
             />
 
+            {/* Website Management */}
             <Route
               path="website"
               element={<WebsiteManagementPage />}
             />
+
+            {/* Subscription Renewal */}
+            <Route
+              path="renew"
+              element={<RenewPlanPage />}
+            />
           </Route>
 
-          <Route
-            path="renew"
-            element={<RenewPlanPage />}
-          />
-
-
+          {/* Dashboard redirect */}
           <Route
             path="/dashboard"
             element={
-              <Navigate to="/my-clinics" replace />
+              <Navigate
+                to="/my-clinics"
+                replace
+              />
             }
           />
         </Route>

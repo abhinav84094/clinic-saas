@@ -130,9 +130,25 @@ export const checkBookingEntitlement = async (
   }
 
   // Verify stored quota matches subscription configuration
-  if (subscription.bookingLimit !== config.bookingLimit) {
+  if (
+    subscription.bookingLimit !== null &&
+    (
+      !Number.isSafeInteger(subscription.bookingLimit) ||
+      subscription.bookingLimit < config.bookingLimit
+    )
+  ) {
     throw createError(
-      "Subscription booking limit mismatch",
+      "Invalid subscription booking limit",
+      500
+    );
+  }
+
+  if (
+    config.bookingLimit !== null &&
+    subscription.bookingLimit === null
+  ) {
+    throw createError(
+      "Invalid unlimited booking entitlement",
       500
     );
   }

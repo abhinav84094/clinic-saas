@@ -60,6 +60,7 @@ const subscriptionPaymentSchema = new Schema(
       default: null,
     },
 
+    
     status: {
       type: String,
       enum: [
@@ -67,9 +68,59 @@ const subscriptionPaymentSchema = new Schema(
         "paid",
         "failed",
         "refunded",
+        "abandoned",
+        "superseded",
+        "review_required",
       ],
       default: "created",
       required: true,
+    },
+
+    reviewRequiredAt: {
+      type: Date,
+      default: null,
+    },
+
+    reviewReason: {
+      type: String,
+      default: null,
+    },
+
+    supersededAt: {
+      type: Date,
+      default: null,
+    },
+
+    purpose: {
+      type: String,
+      enum: ["registration", "upgrade", "renewal"],
+      default: "registration",
+      required: true,
+      immutable: true,
+    },
+
+    fromPlan: {
+      type: String,
+      enum: ["basic", "starter", "growth", "unlimited"],
+      default: null,
+      immutable: true,
+    },
+
+    bookingLimitSnapshot: {
+      type: Number,
+      default: null,
+      min: 0,
+      immutable: true,
+    },
+
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
+
+    abandonedAt: {
+      type: Date,
+      default: null,
     },
 
     paidAt: {

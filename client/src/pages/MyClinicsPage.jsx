@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Building2,
+  CalendarClock,
   Globe2,
   LoaderCircle,
   LogOut,
@@ -14,38 +15,140 @@ import {
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
+const DAY_MS = 86400000;
+
+function getSubscriptionState(clinic, subscription, now) {
+  const isDraft = clinic.status === "draft";
+  const isSuspended = clinic.status === "suspended";
+  const isArchived = clinic.status === "archived";
+
+  if (isDraft || isSuspended || isArchived) {
+    return {
+      isDraft,
+      isSuspended,
+      isArchived,
+      expired: false,
+      expiringSoon: false,
+      daysLeft: null,
+    };
+  }
+
+  const end = subscription?.currentPeriodEnd
+    ? new Date(subscription.currentPeriodEnd).getTime()
+    : NaN;
+
+  const hasValidEnd = Number.isFinite(end);
+
+  const daysLeft = hasValidEnd
+    ? Math.max(0, Math.ceil((end - now) / DAY_MS))
+    : null;
+
+  const expired =
+    clinic.status === "expired" ||
+    (hasValidEnd && end <= now);
+
+  const expiringSoon =
+    !expired &&
+    subscription?.status === "active" &&
+    daysLeft !== null &&
+    daysLeft <= 7;
+
+  return {
+    isDraft,
+    isSuspended,
+    isArchived,
+    expired,
+    expiringSoon,
+    daysLeft,
+  };
+}
+
 export default function MyClinicsPage() {
   const { user, logout } = useAuth();
 
   const [clinics, setClinics] = useState([]);
+  const [subscriptions, setSubscriptions] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     let alive = true;
 
-    api
-      .get("/clinics/my-clinics")
-      .then(({ data }) => {
+    async function loadClinics() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const { data } = await api.get(
+          "/clinics/my-clinics"
+        );
+
+        if (!alive) return;
+
+        const clinicList = data.clinics || [];
+        setClinics(clinicList);
+
+        const results = await Promise.all(
+          clinicList.map(async (clinic) => {
+            if (
+              clinic.status === "draft" ||
+              clinic.status === "suspended" ||
+              clinic.status === "archived"
+            ) {
+              return [String(clinic.id), null];
+            }
+
+            try {
+              const response = await api.get(
+                `/clinics/${clinic.id}/subscription`
+              );
+
+              return [
+                String(clinic.id),
+                {
+                  data: response.data.subscription || null,
+                  error: false,
+                },
+              ];
+            } catch {
+              return [
+                String(clinic.id),
+                {
+                  data: null,
+                  error: true,
+                },
+              ];
+            }
+          })
+        );
+
         if (alive) {
-          setClinics(data.clinics || []);
+          setSubscriptions(Object.fromEntries(results));
+          setNow(Date.now());
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (alive) {
           setError(
             err.response?.data?.message ||
               "Unable to load clinics."
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (alive) setLoading(false);
-      });
+      }
+    }
+
+    loadClinics();
+
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 60000);
 
     return () => {
       alive = false;
+      clearInterval(interval);
     };
   }, []);
 
@@ -130,19 +233,55 @@ export default function MyClinicsPage() {
 
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {clinics.map((clinic) => {
-                const isDraft =
-                  clinic.status === "draft";
+                const clinicId = String(clinic.id);
 
+                const subscriptionResult =
+                  subscriptions[clinicId];
+
+                const subscription =
+                  subscriptionResult?.data || null;
+
+                const subscriptionFailed =
+                  subscriptionResult?.error === true;
+
+                const state = getSubscriptionState(
+                  clinic,
+                  subscription,
+                  now
+                );
+
+                const isDraft = state.isDraft;
                 const isActive =
                   clinic.status === "active";
 
-                const destination = isDraft
-                  ? `/clinics/${clinic.id}/setup`
-                  : `/dashboard/clinic/${clinic.id}`;
+                const isExpired = state.expired;
+                const expiringSoon = state.expiringSoon;
+
+                const subscriptionKnown =
+                  Boolean(subscription) ||
+                  clinic.status === "expired";
+
+                const canManage =
+                  isActive &&
+                  !isExpired &&
+                  subscriptionKnown &&
+                  !subscriptionFailed;
+
+                const canRenew =
+                  (isExpired || expiringSoon) &&
+                  !state.isSuspended &&
+                  !state.isArchived &&
+                  !subscriptionFailed;
+
+                const dashboardUrl =
+                  `/dashboard/clinic/${clinicId}`;
+
+                const renewalUrl =
+                  `${dashboardUrl}/renew`;
 
                 return (
                   <article
-                    key={clinic.id}
+                    key={clinicId}
                     className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                   >
                     <div className="mb-4 flex h-20 items-center justify-center rounded-xl bg-blue-50">
@@ -170,30 +309,90 @@ export default function MyClinicsPage() {
 
                     <span
                       className={`mt-3 w-fit rounded-full px-3 py-1 text-xs font-medium ${
-                        isActive
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
+                        isExpired
+                          ? "bg-red-50 text-red-700"
+                          : isActive
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-amber-50 text-amber-700"
                       }`}
                     >
-                      {isActive
-                        ? "Published"
-                        : isDraft
-                          ? "Draft"
-                          : clinic.status}
+                      {isExpired
+                        ? "Expired"
+                        : isActive
+                          ? "Published"
+                          : isDraft
+                            ? "Draft"
+                            : clinic.status}
                     </span>
 
-                    {(isDraft || isActive) && (
-                      <Link
-                        to={destination}
-                        className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
-                      >
-                        {isDraft
-                          ? "Continue Setup"
-                          : "Manage Clinic"}
-
-                        <ArrowRight size={17} />
-                      </Link>
+                    {expiringSoon && (
+                      <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                        <CalendarClock
+                          size={16}
+                          className="shrink-0"
+                        />
+                        <span>
+                          Subscription expires in{" "}
+                          <strong>
+                            {state.daysLeft}{" "}
+                            {state.daysLeft === 1
+                              ? "day"
+                              : "days"}
+                          </strong>
+                          . Renew to avoid interruption.
+                        </span>
+                      </div>
                     )}
+
+                    {isExpired && (
+                      <p className="mt-4 text-xs leading-5 text-red-600">
+                        Your subscription has expired.
+                        Renew to restore clinic access.
+                      </p>
+                    )}
+
+                    {subscriptionFailed && isActive && (
+                      <p className="mt-4 text-xs text-amber-700">
+                        Unable to verify subscription status.
+                        Please refresh the page.
+                      </p>
+                    )}
+
+                    <div className="mt-auto space-y-2 pt-5">
+                      {isDraft && (
+                        <Link
+                          to={`/clinics/${clinicId}/setup`}
+                          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+                        >
+                          Continue Setup
+                          <ArrowRight size={17} />
+                        </Link>
+                      )}
+
+                      {canManage && (
+                        <Link
+                          to={dashboardUrl}
+                          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+                        >
+                          Manage Clinic
+                          <ArrowRight size={17} />
+                        </Link>
+                      )}
+
+                      {canRenew && (
+                        <Link
+                          to={renewalUrl}
+                          className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white ${
+                            isExpired
+                              ? "bg-blue-600 hover:bg-blue-700"
+                              : "bg-slate-900 hover:bg-slate-800"
+                          }`}
+                        >
+                          Renew Plan
+                          <ArrowRight size={17} />
+                        </Link>
+                      )}
+                    </div>
                   </article>
                 );
               })}

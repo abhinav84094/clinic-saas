@@ -1,41 +1,43 @@
 
 import mongoose from "mongoose";
+import crypto from "node:crypto";
 
 import Clinic from "../models/Clinic.js";
 import ClinicMembership from "../models/ClinicMembership.js";
 import ClinicSubscription from "../models/ClinicSubscription.js";
 import SubscriptionPayment from "../models/SubscriptionPayment.js";
 
+import { getRazorpay } from "../config/razorpay.js";
 import { getPlanConfig } from "./subscriptionService.js";
+import {
+  classifyRazorpayOrder,
+  validateOrderIdentity,
+} from "./subscriptionPaymentService.js";
 
-const createError = (message, statusCode) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-};
+const fail = (message, statusCode = 409) =>
+  Object.assign(new Error(message), { statusCode });
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
 
 const validateIds = (clinicId, userId) => {
   if (
     !mongoose.isValidObjectId(clinicId) ||
     !mongoose.isValidObjectId(userId)
   ) {
-    throw createError("Invalid clinic or user ID", 400);
+    throw fail("Invalid clinic or user ID", 400);
   }
 };
 
 const requireOwner = async (clinicId, userId) => {
-  const membership = await ClinicMembership.findOne({
+  const owner = await ClinicMembership.exists({
     clinicId,
     userId,
     role: "owner",
     status: "active",
   });
 
-  if (!membership) {
-    throw createError(
-      "Only the clinic owner can manage the subscription",
-      403
-    );
+  if (!owner) {
+    throw fail("Only clinic owners can change billing", 403);
   }
 };
 
@@ -52,6 +54,16 @@ const formatSubscription = (subscription) => ({
   currentPeriodEnd: subscription.currentPeriodEnd,
 });
 
+const getExpiry = (record) => {
+  if (record.expiresAt) {
+    return new Date(record.expiresAt);
+  }
+
+  return new Date(
+    new Date(record.createdAt).getTime() + ONE_HOUR_MS
+  );
+};
+
 export const getClinicSubscriptionSetup = async ({
   clinicId,
   userId,
@@ -64,7 +76,7 @@ export const getClinicSubscriptionSetup = async ({
   });
 
   if (!subscription) {
-    throw createError("Subscription not found", 404);
+    throw fail("Subscription not found", 404);
   }
 
   return formatSubscription(subscription);
@@ -78,7 +90,7 @@ export const updateSubscriptionBillingCycle = async ({
   validateIds(clinicId, userId);
 
   if (!["monthly", "yearly"].includes(billingCycle)) {
-    throw createError("Invalid billing cycle", 400);
+    throw fail("Invalid billing cycle", 400);
   }
 
   await requireOwner(clinicId, userId);
@@ -89,41 +101,32 @@ export const updateSubscriptionBillingCycle = async ({
   });
 
   if (!clinic) {
-    throw createError(
-      "Only draft clinics can change their registration billing cycle",
+    throw fail(
+      "Only draft clinics can change registration billing",
       409
     );
   }
 
-  // Reserve the subscription atomically.
-  // Payment creation uses this same lock.
-  const token = new mongoose.Types.ObjectId().toString();
+  const token = crypto.randomUUID();
 
+  // Same lock used by payment order creation.
   const subscription = await ClinicSubscription.findOneAndUpdate(
     {
       clinicId,
       status: "pending",
       plan: "basic",
-      $or: [
-        { paymentOrderLock: null },
-        { paymentOrderLock: { $exists: false } },
-      ],
+      paymentOrderLock: null,
     },
     {
       $set: {
         paymentOrderLock: token,
       },
     },
-    {
-      returnDocument: "after",
-    }
+    { new: true }
   );
 
   if (!subscription) {
-    throw createError(
-      "Subscription payment setup is busy or not eligible",
-      409
-    );
+    throw fail("Subscription checkout is busy or not eligible");
   }
 
   try {
@@ -131,51 +134,168 @@ export const updateSubscriptionBillingCycle = async ({
       return formatSubscription(subscription);
     }
 
-    // Conservative policy:
-    // Do not change billing cycle once a payment order exists.
-    // A separate cancellation/reconciliation workflow is required.
-    const existingOrder = await SubscriptionPayment.exists({
+    // Any paid or review-required record must be resolved
+    // before switching billing cycles.
+    const needsReview = await SubscriptionPayment.exists({
       clinicId,
       subscriptionId: subscription._id,
+      status: { $in: ["paid", "review_required"] },
     });
 
-    if (existingOrder) {
-      throw createError(
-        "A payment order already exists. Contact support to change billing cycle.",
-        409
+    if (needsReview) {
+      throw fail(
+        "A previous payment needs reconciliation or review"
       );
+    }
+
+    const createdOrders = await SubscriptionPayment.find({
+      clinicId,
+      subscriptionId: subscription._id,
+      status: "created",
+    }).sort({ createdAt: -1 });
+
+    const razorpay = getRazorpay();
+
+    // Inspect every current order before superseding.
+    for (const record of createdOrders) {
+      const expiresAt = getExpiry(record);
+
+      if (
+        !Number.isFinite(expiresAt.getTime()) ||
+        Date.now() < expiresAt.getTime()
+      ) {
+        throw fail(
+          "Please wait until the existing checkout's 1-hour window ends"
+        );
+      }
+
+      const remote = await razorpay.orders.fetch(
+        record.razorpayOrderId
+      );
+
+      validateOrderIdentity(remote, record);
+
+      const state = await classifyRazorpayOrder(
+        razorpay,
+        remote
+      );
+
+      if (state === "paid") {
+        throw fail(
+          "A previous payment was received. Reconcile it first."
+        );
+      }
+
+      if (state !== "retryable") {
+        throw fail(
+          "A previous payment is still pending confirmation"
+        );
+      }
     }
 
     const config = getPlanConfig("basic", billingCycle);
+    const session = await mongoose.startSession();
 
-    const updated = await ClinicSubscription.findOneAndUpdate(
-      {
-        _id: subscription._id,
-        paymentOrderLock: token,
-        status: "pending",
-        billingCycle: subscription.billingCycle,
-      },
-      {
-        $set: {
-          billingCycle,
-          priceSnapshot: config.price,
-          bookingLimit: config.bookingLimit,
-        },
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    try {
+      let updated;
 
-    if (!updated) {
-      throw createError(
-        "Subscription changed. Refresh and try again.",
-        409
-      );
+      await session.withTransaction(async () => {
+        // Recheck current state inside the transaction.
+        const current = await ClinicSubscription.findOne({
+          _id: subscription._id,
+          clinicId,
+          status: "pending",
+          plan: "basic",
+          billingCycle: subscription.billingCycle,
+          paymentOrderLock: token,
+        }).session(session);
+
+        if (!current) {
+          throw fail(
+            "Subscription changed. Refresh and try again."
+          );
+        }
+
+        const draft = await Clinic.exists({
+          _id: clinicId,
+          status: "draft",
+        }).session(session);
+
+        if (!draft) {
+          throw fail("Clinic is no longer in draft status");
+        }
+
+        const payments = await SubscriptionPayment.find({
+          clinicId,
+          subscriptionId: current._id,
+        }).session(session);
+
+        if (
+          payments.some((payment) =>
+            ["paid", "review_required"].includes(payment.status)
+          )
+        ) {
+          throw fail("A previous payment requires review");
+        }
+
+        const currentCreated = payments.filter(
+          (payment) => payment.status === "created"
+        );
+
+        // Detect new or changed orders after Razorpay inspection.
+        if (
+          currentCreated.length !== createdOrders.length ||
+          currentCreated.some(
+            (payment) =>
+              !createdOrders.some(
+                (record) =>
+                  String(record._id) === String(payment._id)
+              )
+          )
+        ) {
+          throw fail(
+            "Payment history changed. Refresh and try again."
+          );
+        }
+
+        const now = new Date();
+
+        // Preserve every old Razorpay order for auditing.
+        if (currentCreated.length) {
+          const result = await SubscriptionPayment.updateMany(
+            {
+              _id: { $in: currentCreated.map((p) => p._id) },
+              status: "created",
+            },
+            {
+              $set: {
+                status: "superseded",
+                supersededAt: now,
+              },
+            },
+            { session, runValidators: true }
+          );
+
+          if (result.modifiedCount !== currentCreated.length) {
+            throw fail(
+              "Payment state changed. Refresh and try again."
+            );
+          }
+        }
+
+        current.billingCycle = billingCycle;
+        current.priceSnapshot = config.price;
+        current.bookingLimit = config.bookingLimit;
+
+        await current.save({ session });
+
+        updated = current;
+      });
+
+      return formatSubscription(updated);
+    } finally {
+      await session.endSession();
     }
-
-    return formatSubscription(updated);
   } finally {
     await ClinicSubscription.updateOne(
       {
