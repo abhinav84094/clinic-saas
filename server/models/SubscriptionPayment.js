@@ -105,6 +105,11 @@ const subscriptionPaymentSchema = new Schema(
       default: null,
       immutable: true,
     },
+    sourcePeriodEnd: {
+      type: Date,
+      default: null,
+      immutable: true,
+    },
 
     bookingLimitSnapshot: {
       type: Number,

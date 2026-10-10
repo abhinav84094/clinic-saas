@@ -3,6 +3,7 @@ import {
   createSubscriptionPaymentOrder,
   verifySubscriptionPayment,
   reconcileSubscriptionPayment,
+  createPlanChangeOrder,
 } from "../services/subscriptionPaymentService.js";
 
 export const createPaymentOrder = async (req, res, next) => {
@@ -78,6 +79,55 @@ export const reconcilePaymentController = async (
         ? "Payment was already processed"
         : "Payment recovered and subscription activated",
       subscription: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+
+export const createUpgradeOrderController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const order = await createPlanChangeOrder({
+      clinicId: req.params.clinicId,
+      userId: req.user._id,
+      purpose: "upgrade",
+      toPlan: req.body?.toPlan,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Upgrade checkout created",
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createRenewalOrderController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const order = await createPlanChangeOrder({
+      clinicId: req.params.clinicId,
+      userId: req.user._id,
+      purpose: "renewal",
+      billingCycle: req.body?.billingCycle,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Basic renewal checkout created",
+      order,
     });
   } catch (error) {
     next(error);

@@ -9,6 +9,11 @@ import ClinicMembership from "../models/ClinicMembership.js";
 import { getRazorpay } from "../config/razorpay.js";
 import { getPlanConfig } from "./subscriptionService.js";
 
+import { calculateUpgradeQuota } from "./subscriptionQuotaService.js";
+
+
+
+
 const fail = (message, statusCode = 409) =>
   Object.assign(new Error(message), { statusCode });
 
@@ -35,6 +40,8 @@ const requireOwner = async (clinicId, userId) => {
 };
 
 export const validateOrderIdentity = (remote, record) => {
+  const purpose = record.purpose || "registration";
+
   if (
     remote.id !== record.razorpayOrderId ||
     remote.amount !== record.amount ||
@@ -43,7 +50,11 @@ export const validateOrderIdentity = (remote, record) => {
     String(remote.notes?.subscriptionId) !==
       String(record.subscriptionId) ||
     remote.notes?.plan !== record.plan ||
-    remote.notes?.billingCycle !== record.billingCycle
+    remote.notes?.billingCycle !== record.billingCycle ||
+    (
+      purpose !== "registration" &&
+      remote.notes?.purpose !== purpose
+    )
   ) {
     throw fail("Razorpay order identity mismatch");
   }
@@ -102,7 +113,7 @@ const processCapturedPayment = async ({
         throw fail("Subscription not found", 404);
       }
 
-      // Idempotency: never activate the same payment twice.
+      // Already processed: never grant quota twice.
       if (payment.status === "paid") {
         if (payment.razorpayPaymentId !== razorpayPaymentId) {
           throw fail("Payment identity conflict");
@@ -134,6 +145,14 @@ const processCapturedPayment = async ({
         return;
       }
 
+      if (
+        !["created", "abandoned", "superseded"].includes(
+          payment.status
+        )
+      ) {
+        throw fail("Payment state conflict");
+      }
+
       const now = new Date();
       const purpose = payment.purpose || "registration";
 
@@ -142,115 +161,89 @@ const processCapturedPayment = async ({
         payment.billingCycle
       );
 
-      const validPrice =
-        Number.isSafeInteger(payment.amount) &&
-        payment.amount > 0 &&
-        config.price * 100 === payment.amount;
-
       const active =
         subscription.status === "active" &&
+        subscription.currentPeriodStart != null &&
         subscription.currentPeriodStart <= now &&
         subscription.currentPeriodEnd > now;
 
       const expired =
-        subscription.status === "expired" ||
-        (
-          subscription.currentPeriodEnd != null &&
-          subscription.currentPeriodEnd <= now
-        );
+        ["active", "expired", "past_due"].includes(
+          subscription.status
+        ) &&
+        subscription.currentPeriodEnd != null &&
+        subscription.currentPeriodEnd <= now;
 
-      const rank = {
+      const planRank = {
         basic: 0,
         starter: 1,
         growth: 2,
         unlimited: 3,
       };
 
+      const validPrice =
+        Number.isSafeInteger(payment.amount) &&
+        config.price * 100 === payment.amount;
+
+      const sourcePeriodMatches =
+        payment.sourcePeriodEnd != null &&
+        subscription.currentPeriodEnd != null &&
+        new Date(payment.sourcePeriodEnd).getTime() ===
+          new Date(subscription.currentPeriodEnd).getTime();
+
       let eligible = false;
       let newBookingLimit = config.bookingLimit;
 
+      // REGISTRATION: only pending Basic.
       if (purpose === "registration") {
         eligible =
-          payment.plan === "basic" &&
           payment.status === "created" &&
+          payment.plan === "basic" &&
           subscription.status === "pending" &&
           subscription.plan === "basic" &&
           subscription.billingCycle === payment.billingCycle &&
           subscription.priceSnapshot * 100 === payment.amount;
       }
 
-      if (purpose === "renewal") {
-        eligible =
-          payment.plan === "basic" &&
-          payment.status === "created" &&
-          expired &&
-          !active &&
-          subscription.status !== "cancelled" &&
-          payment.fromPlan == null;
-
-        // Renewal never carries old bookings.
-        newBookingLimit = 0;
-      }
-
+      // UPGRADE: active, unexpired, higher plan.
       if (purpose === "upgrade") {
         eligible =
           payment.status === "created" &&
           active &&
+          sourcePeriodMatches &&
           subscription.plan === payment.fromPlan &&
           subscription.billingCycle === payment.billingCycle &&
-          rank[payment.plan] > rank[subscription.plan];
+          planRank[payment.plan] > planRank[subscription.plan] &&
+          payment.bookingLimitSnapshot === config.bookingLimit;
 
         if (eligible) {
-          const remaining =
-            subscription.bookingLimit === null
-              ? 0
-              : Math.max(
-                  0,
-                  subscription.bookingLimit -
-                    subscription.bookingsUsed
-                );
-
-          newBookingLimit =
-            config.bookingLimit === null
-              ? null
-              : config.bookingLimit + remaining;
-
-          if (
-            newBookingLimit !== null &&
-            !Number.isSafeInteger(newBookingLimit)
-          ) {
-            eligible = false;
-          }
+          newBookingLimit = calculateUpgradeQuota({
+            subscription,
+            toPlan: payment.plan,
+          });
         }
       }
 
-      // Snapshot must match the purchased plan's base quota.
-      const validSnapshot =
-        purpose === "registration" ||
-        payment.bookingLimitSnapshot === config.bookingLimit;
+      // RENEWAL: expired clinic returns to Basic.
+      if (purpose === "renewal") {
+        eligible =
+          payment.status === "created" &&
+          expired &&
+          sourcePeriodMatches &&
+          payment.plan === "basic" &&
+          payment.fromPlan === subscription.plan &&
+          payment.bookingLimitSnapshot === 0;
 
-      if (
-        !eligible ||
-        !validPrice ||
-        !validSnapshot ||
-        !["created", "abandoned", "superseded"].includes(
-          payment.status
-        )
-      ) {
-        if (
-          !["created", "abandoned", "superseded"].includes(
-            payment.status
-          )
-        ) {
-          throw fail("Payment state conflict");
-        }
+        newBookingLimit = 0;
+      }
 
+      if (!eligible || !validPrice) {
         payment.status = "review_required";
         payment.razorpayPaymentId = razorpayPaymentId;
         payment.paidAt = now;
         payment.reviewRequiredAt = now;
         payment.reviewReason =
-          "Captured payment could not safely activate the selected plan";
+          "Captured payment cannot safely activate the selected subscription";
 
         await payment.save({ session });
 
@@ -266,7 +259,7 @@ const processCapturedPayment = async ({
         payment.billingCycle === "monthly" ? 30 : 365;
 
       const end = new Date(
-        now.getTime() + days * 24 * 60 * 60 * 1000
+        now.getTime() + days * 86400000
       );
 
       payment.status = "paid";
@@ -282,7 +275,6 @@ const processCapturedPayment = async ({
       subscription.currentPeriodStart = now;
       subscription.currentPeriodEnd = end;
 
-      // Save both records atomically.
       await payment.save({ session });
       await subscription.save({ session });
 
@@ -306,6 +298,7 @@ const processCapturedPayment = async ({
     await session.endSession();
   }
 };
+
 
 
 const verifyCapturedPayment = async ({
@@ -486,6 +479,246 @@ export const createSubscriptionPaymentOrder = async ({
     }
   }
 };
+
+
+export const createPlanChangeOrder = async ({
+  clinicId,
+  userId,
+  purpose,
+  toPlan,
+  billingCycle,
+}) => {
+  valid(clinicId, userId);
+  await requireOwner(clinicId, userId);
+
+  if (!["upgrade", "renewal"].includes(purpose)) {
+    throw fail("Invalid payment purpose", 400);
+  }
+
+  const token = crypto.randomUUID();
+
+  const subscription = await ClinicSubscription.findOneAndUpdate(
+    {
+      clinicId,
+      paymentOrderLock: null,
+    },
+    {
+      $set: { paymentOrderLock: token },
+    },
+    { new: true }
+  );
+
+  if (!subscription) {
+    throw fail("Subscription checkout busy or unavailable");
+  }
+
+  let releaseLock = true;
+
+  try {
+    const now = new Date();
+
+    const active =
+      subscription.status === "active" &&
+      subscription.currentPeriodStart != null &&
+      subscription.currentPeriodStart <= now &&
+      subscription.currentPeriodEnd > now;
+
+    const expired =
+      ["active", "expired", "past_due"].includes(
+        subscription.status
+      ) &&
+      subscription.currentPeriodEnd != null &&
+      subscription.currentPeriodEnd <= now;
+
+    const planRank = {
+      basic: 0,
+      starter: 1,
+      growth: 2,
+      unlimited: 3,
+    };
+
+    if (purpose === "upgrade") {
+      if (
+        !active ||
+        !Object.hasOwn(planRank, toPlan) ||
+        planRank[toPlan] <= planRank[subscription.plan]
+      ) {
+        throw fail(
+          "Active subscription and a higher plan required"
+        );
+      }
+
+      // Upgrade always keeps current billing cycle.
+      billingCycle = subscription.billingCycle;
+    }
+
+    if (purpose === "renewal") {
+      if (!expired) {
+        throw fail("Only expired clinics can renew");
+      }
+
+      if (!["monthly", "yearly"].includes(billingCycle)) {
+        throw fail("Invalid billing cycle", 400);
+      }
+
+      // Renewal must always start with Basic.
+      toPlan = "basic";
+    }
+
+    const config = getPlanConfig(toPlan, billingCycle);
+    const amount = config.price * 100;
+
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      throw fail("Invalid plan price", 500);
+    }
+
+    const razorpay = getRazorpay();
+
+    // Do not start another checkout when a captured
+    // payment requires manual review.
+    const needsReview = await SubscriptionPayment.exists({
+      clinicId,
+      subscriptionId: subscription._id,
+      status: "review_required",
+    });
+
+    if (needsReview) {
+      throw fail(
+        "A previous payment requires support review"
+      );
+    }
+
+    const records = await SubscriptionPayment.find({
+      clinicId,
+      subscriptionId: subscription._id,
+      status: "created",
+    }).sort({ createdAt: -1 });
+
+    let reusable = null;
+
+    for (const record of records) {
+      const remote = await razorpay.orders.fetch(
+        record.razorpayOrderId
+      );
+
+      validateOrderIdentity(remote, record);
+
+      const state = await classifyRazorpayOrder(
+        razorpay,
+        remote
+      );
+
+      if (state === "paid") {
+        throw fail(
+          "Previous payment captured. Reconcile it first."
+        );
+      }
+
+      if (state === "pending") {
+        throw fail(
+          "Previous checkout is still being confirmed."
+        );
+      }
+
+      const samePeriod =
+        record.sourcePeriodEnd != null &&
+        new Date(record.sourcePeriodEnd).getTime() ===
+          new Date(subscription.currentPeriodEnd).getTime();
+
+      const sameOrder =
+        record.purpose === purpose &&
+        record.plan === toPlan &&
+        record.billingCycle === billingCycle &&
+        record.amount === amount &&
+        record.fromPlan === subscription.plan &&
+        samePeriod;
+
+      if (!sameOrder) {
+        throw fail(
+          "An older checkout must be resolved before changing plans."
+        );
+      }
+
+      reusable ??= record;
+    }
+
+    if (reusable) {
+      return {
+        orderId: reusable.razorpayOrderId,
+        amount: reusable.amount,
+        currency: reusable.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+        purpose,
+      };
+    }
+
+    // A network timeout during Razorpay creation may
+    // leave an unknown remote order. Preserve the lock.
+    releaseLock = false;
+
+    const order = await razorpay.orders.create({
+      amount,
+      currency: "INR",
+      receipt: `plan_${subscription._id}_${Date.now()}`
+        .slice(0, 40),
+      notes: {
+        clinicId: String(clinicId),
+        subscriptionId: String(subscription._id),
+        plan: toPlan,
+        billingCycle,
+        purpose,
+      },
+    });
+
+    if (
+      !order?.id ||
+      order.amount !== amount ||
+      order.currency !== "INR"
+    ) {
+      throw fail("Unexpected Razorpay order response", 502);
+    }
+
+    await SubscriptionPayment.create({
+      clinicId,
+      subscriptionId: subscription._id,
+      purpose,
+      fromPlan: subscription.plan,
+      sourcePeriodEnd: subscription.currentPeriodEnd,
+      plan: toPlan,
+      billingCycle,
+      amount,
+      currency: "INR",
+      bookingLimitSnapshot: config.bookingLimit,
+      razorpayOrderId: order.id,
+      status: "created",
+      expiresAt: new Date(Date.now() + 3600000),
+    });
+
+    releaseLock = true;
+
+    return {
+      orderId: order.id,
+      amount,
+      currency: "INR",
+      keyId: process.env.RAZORPAY_KEY_ID,
+      purpose,
+    };
+  } finally {
+    if (releaseLock) {
+      await ClinicSubscription.updateOne(
+        {
+          _id: subscription._id,
+          paymentOrderLock: token,
+        },
+        {
+          $set: { paymentOrderLock: null },
+        }
+      );
+    }
+  }
+};
+
+
 
 export const verifySubscriptionPayment = async ({
   clinicId,

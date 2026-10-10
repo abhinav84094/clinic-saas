@@ -24,6 +24,8 @@ import {
   createPaymentOrder,
   verifyPaymentController,
   reconcilePaymentController,
+  createUpgradeOrderController,
+  createRenewalOrderController,
 } from "../controllers/subscriptionPaymentController.js";
 
 import {
@@ -148,5 +150,23 @@ router.post(
   requireClinicAccess(["owner"]),
   reconcilePaymentController
 );
+
+
+// Active clinic: higher-plan upgrade
+router.post(
+  "/:clinicId/subscription/upgrade-order",
+  protect,
+  requireClinicAccess(["owner"]),
+  createUpgradeOrderController
+);
+
+// Expired clinic: Basic renewal
+router.post(
+  "/:clinicId/subscription/renewal-order",
+  protect,
+  requireClinicAccess(["owner"]),
+  createRenewalOrderController
+);
+
 
 export default router;
