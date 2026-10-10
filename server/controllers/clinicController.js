@@ -114,6 +114,9 @@ export const getClinicProfile = async (req, res) => {
         bookingSettings: clinic.bookingSettings,
         createdAt: clinic.createdAt,
         updatedAt: clinic.updatedAt,
+        website: {
+          templateId: clinic.website?.templateId || "A",
+        },
       },
       membership: {
         role: req.clinicMembership.role,

@@ -35,7 +35,8 @@ import { getClinicSlugFromHostname } from "./utils/clinicDomain";
 
 import ServicesManagementPage from "./pages/dashboard/ServicesManagementPage";
 import ClinicProfilePage from "./pages/dashboard/ClinicProfilePage";
-
+import WebsiteManagementPage from "./pages/dashboard/WebsiteManagementPage";
+import RenewPlanPage from "./pages/dashboard/RenewPlanPage";
 
 function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -225,9 +226,14 @@ export default function App() {
 
             <Route
               path="website"
-              element={<WebsiteSetupPage />}
+              element={<WebsiteManagementPage />}
             />
           </Route>
+
+          <Route
+            path="renew"
+            element={<RenewPlanPage />}
+          />
 
 
           <Route

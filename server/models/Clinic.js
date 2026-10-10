@@ -149,6 +149,15 @@ const clinicSchema = new Schema(
       type: brandingSchema,
       default: () => ({}),
     },
+        
+    website: {
+      templateId: {
+        type: String,
+        enum: ["A"],
+        default: "A",
+      },
+    },
+
 
     bookingSettings: {
       type: bookingSettingsSchema,

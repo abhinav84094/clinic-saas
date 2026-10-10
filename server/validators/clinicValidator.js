@@ -38,6 +38,8 @@ const timezoneSchema = z.string().trim().refine(
     { message: "Invalid timezone" }
   );
 
+  
+
 export const createClinicSchema = z.strictObject({
   name: z.string().trim().min(2).max(150),
 
@@ -96,8 +98,12 @@ export const updateClinicSchema = z.strictObject({
 
     branding: updateBrandingSchema.optional(),
 
-    timezone: timezoneSchema.optional(),})
-  .refine(
+    timezone: timezoneSchema.optional(),
+    website: z.strictObject({
+      templateId: z.enum(["A"]),
+    }).optional(),
+    })
+   .refine(
     (data) =>
       Object.values(data).some(
         (value) =>

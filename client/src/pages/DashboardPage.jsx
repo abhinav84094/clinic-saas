@@ -3,8 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import {
+  AlertTriangle,
   ArrowUpRight,
   CalendarDays,
+  CalendarClock,
   CheckCircle2,
   ClipboardList,
   Clock3,
@@ -25,10 +27,7 @@ const formatDate = (value) => {
   if (!value) return "Date unavailable";
 
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Date unavailable";
-  }
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
 
   return date.toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata",
@@ -38,6 +37,18 @@ const formatDate = (value) => {
     hour: "numeric",
     minute: "2-digit",
   });
+};
+
+const getRemainingDays = (endDate, now) => {
+  if (!endDate) return null;
+
+  const expiry = new Date(endDate).getTime();
+  if (!Number.isFinite(expiry)) return null;
+
+  return Math.max(
+    0,
+    Math.ceil((expiry - now) / (24 * 60 * 60 * 1000))
+  );
 };
 
 function StatCard({ label, value, icon: Icon, description }) {
@@ -98,9 +109,14 @@ export default function DashboardPage() {
 
   const [clinic, setClinic] = useState(null);
   const [dashboard, setDashboard] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [subscriptionError, setSubscriptionError] = useState("");
+
+  const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async ({ initial = false } = {}) => {
     if (initial) {
@@ -110,6 +126,7 @@ export default function DashboardPage() {
     }
 
     setError("");
+    setSubscriptionError("");
 
     try {
       const [clinicResponse, dashboardResponse] =
@@ -120,6 +137,25 @@ export default function DashboardPage() {
 
       setClinic(clinicResponse.data.clinic);
       setDashboard(dashboardResponse.data);
+
+      // Subscription errors must not break the dashboard.
+      try {
+        const subscriptionResponse = await api.get(
+          `/clinics/${clinicId}/subscription`
+        );
+
+        setSubscription(
+          subscriptionResponse.data.subscription || null
+        );
+      } catch (err) {
+        setSubscription(null);
+        setSubscriptionError(
+          err.response?.data?.message ||
+            "Subscription details are unavailable."
+        );
+      }
+
+      setNow(Date.now());
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -135,12 +171,60 @@ export default function DashboardPage() {
     load({ initial: true });
   }, [load]);
 
+  // Update the countdown while the dashboard remains open.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const stats = dashboard?.stats;
 
+  const remainingDays = getRemainingDays(
+    subscription?.currentPeriodEnd,
+    now
+  );
+
+  const periodStart = subscription?.currentPeriodStart
+    ? new Date(subscription.currentPeriodStart).getTime()
+    : null;
+
+  const periodEnd = subscription?.currentPeriodEnd
+    ? new Date(subscription.currentPeriodEnd).getTime()
+    : null;
+
+  const subscriptionActive =
+    subscription?.status === "active" &&
+    Number.isFinite(periodStart) &&
+    Number.isFinite(periodEnd) &&
+    periodStart <= now &&
+    periodEnd > now;
+
+  const subscriptionExpired =
+    clinic?.status === "expired" ||
+    (subscription &&
+      Number.isFinite(periodEnd) &&
+      periodEnd <= now);
+
+  const expiringSoon =
+    clinic?.status === "active" &&
+    subscriptionActive &&
+    remainingDays !== null &&
+    remainingDays <= 7;
+
+  const websiteLive =
+    clinic?.status === "active" &&
+    subscriptionActive;
+
   const publicUrl =
-    clinic?.status === "active" && clinic?.slug
+    websiteLive && clinic?.slug
       ? getClinicPublicUrl(clinic.slug)
       : null;
+
+  const renewalUrl =
+    `/dashboard/clinic/${clinicId}/renew`;
 
   const statCards = [
     {
@@ -163,307 +247,422 @@ export default function DashboardPage() {
     },
     {
       label: "Clinic Website",
-      value:
-        clinic?.status === "active"
-          ? "Live"
-          : "Not Live",
+      value: websiteLive ? "Live" : "Not Live",
       icon: Globe2,
-      description:
-        clinic?.status === "active"
-          ? "Your clinic is published"
-          : "Clinic website is not published",
+      description: websiteLive
+        ? "Your clinic is published"
+        : "Clinic website is not currently available",
     },
   ];
 
-
-const quickActions = [
-  {
-    title: "Manage Doctors",
-    description: "Add or update doctor profiles",
-    icon: Stethoscope,
-    to: `/dashboard/clinic/${clinicId}/doctors`,
-  },
-  {
-    title: "Manage Services",
-    description: "Consultations, pricing and services",
-    icon: ClipboardList,
-    to: `/dashboard/clinic/${clinicId}/services`,
-  },
-  {
-    title: "Manage Availability",
-    description: "Configure doctor working schedules",
-    icon: Clock3,
-    to: `/dashboard/clinic/${clinicId}/services`,
-  },
-  {
-    title: "Clinic Profile",
-    description: "Update clinic information",
-    icon: Plus,
-    to: `/dashboard/clinic/${clinicId}/profile`,
-  },
-];
-
+  const quickActions = [
+    {
+      title: "Manage Doctors",
+      description: "Add or update doctor profiles",
+      icon: Stethoscope,
+      to: `/dashboard/clinic/${clinicId}/doctors`,
+    },
+    {
+      title: "Manage Services",
+      description: "Consultations, pricing and services",
+      icon: ClipboardList,
+      to: `/dashboard/clinic/${clinicId}/services`,
+    },
+    {
+      title: "Manage Availability",
+      description: "Configure doctor working schedules",
+      icon: Clock3,
+      to: `/dashboard/clinic/${clinicId}/services`,
+    },
+    {
+      title: "Clinic Profile",
+      description: "Update clinic information",
+      icon: Plus,
+      to: `/dashboard/clinic/${clinicId}/profile`,
+    },
+  ];
 
   return (
-
     <div className="space-y-7">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-              Clinic Overview
-            </h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            Clinic Overview
+          </h1>
 
-            <p className="mt-2 text-sm text-slate-500">
-              Welcome back,{" "}
-              {user?.name?.split(" ")[0] || "Owner"}.
-              Manage your clinic from one place.
-            </p>
-          </div>
+          <p className="mt-2 text-sm text-slate-500">
+            Welcome back,{" "}
+            {user?.name?.split(" ")[0] || "Owner"}.
+            Manage your clinic from one place.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => load()}
+          disabled={loading || refreshing}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <RefreshCw
+            size={16}
+            className={refreshing ? "animate-spin" : ""}
+          />
+          Refresh
+        </button>
+      </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {error}
 
           <button
             type="button"
-            onClick={() => load()}
-            disabled={loading || refreshing}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            onClick={() => load({ initial: true })}
+            className="ml-3 font-bold underline"
           >
-            <RefreshCw
-              size={16}
-              className={refreshing ? "animate-spin" : ""}
-            />
-            Refresh
+            Retry
           </button>
         </div>
+      )}
 
-        {error && (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-          >
-            {error}
+      {loading && (
+        <div className="flex items-center justify-center gap-3 rounded-2xl bg-white p-16 text-slate-500">
+          <LoaderCircle
+            size={21}
+            className="animate-spin"
+          />
+          Loading dashboard...
+        </div>
+      )}
 
-            <button
-              type="button"
-              onClick={() => load({ initial: true })}
-              className="ml-3 font-bold underline"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+      {!loading && clinic && dashboard && (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {statCards.map((card) => (
+              <StatCard key={card.label} {...card} />
+            ))}
+          </section>
 
-        {loading && (
-          <div className="flex items-center justify-center gap-3 rounded-2xl bg-white p-16 text-slate-500">
-            <LoaderCircle
-              size={21}
-              className="animate-spin"
-            />
-            Loading dashboard...
-          </div>
-        )}
-
-        {!loading && clinic && dashboard && (
-          <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {statCards.map((card) => (
-                <StatCard key={card.label} {...card} />
-              ))}
-            </section>
-
-            {clinic.status !== "active" && (
-              <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-                <div>
-                  <h2 className="font-bold text-amber-900">
-                    Clinic is not published
-                  </h2>
-
-                  <p className="mt-1 text-sm text-amber-800">
-                    Complete your clinic setup and review
-                    publishing requirements.
-                  </p>
-                </div>
-
-                <Link
-                  to={`/clinics/${clinicId}/review`}
-                  className="rounded-xl bg-amber-900 px-4 py-2.5 text-sm font-semibold text-white"
-                >
-                  Review Clinic
-                </Link>
-              </section>
-            )}
-
-            <div className="grid gap-6 xl:grid-cols-3">
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
-                <div className="mb-5 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Quick Actions
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      Frequently used clinic management tools
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {quickActions.map((action) => (
-                    <QuickAction
-                      key={action.title}
-                      {...action}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-900">
-                  Clinic Status
+          {clinic.status === "draft" && (
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              <div>
+                <h2 className="font-bold text-amber-900">
+                  Clinic is not published
                 </h2>
 
-                <div className="mt-5 space-y-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-slate-500">
-                      Clinic
-                    </span>
+                <p className="mt-1 text-sm text-amber-800">
+                  Complete your clinic setup and review
+                  publishing requirements.
+                </p>
+              </div>
 
-                    <span className="truncate text-sm font-semibold">
-                      {clinic.name}
-                    </span>
-                  </div>
+              <Link
+                to={`/clinics/${clinicId}/review`}
+                className="rounded-xl bg-amber-900 px-4 py-2.5 text-sm font-semibold text-white"
+              >
+                Review Clinic
+              </Link>
+            </section>
+          )}
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">
-                      Status
-                    </span>
-
-                    <span className="text-sm font-semibold capitalize">
-                      {clinic.status}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">
-                      Active Doctors
-                    </span>
-
-                    <span className="text-sm font-semibold">
-                      {stats?.activeDoctors ?? 0}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">
-                      Website
-                    </span>
-
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold">
-                      {clinic.status === "active" ? (
-                        <>
-                          <CheckCircle2
-                            size={15}
-                            className="text-green-600"
-                          />
-                          Published
-                        </>
-                      ) : (
-                        "Not published"
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                {publicUrl && (
-                  <a
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white"
-                  >
-                    View Clinic Website
-                    <ExternalLink size={16} />
-                  </a>
-                )}
-
-                <Link
-                  to={`/clinics/${clinicId}/website/setup`}
-                  className="mt-3 block rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
-                >
-                  Website Settings
-                </Link>
-              </section>
-            </div>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-6 xl:grid-cols-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+              <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">
-                    Upcoming Appointments
+                    Quick Actions
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    Your next scheduled patient visits
+                    Frequently used clinic management tools
                   </p>
                 </div>
-
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                  {dashboard.upcomingAppointments?.length || 0} shown
-                </span>
               </div>
 
-              {dashboard.upcomingAppointments?.length ? (
-                <div className="divide-y divide-slate-100">
-                  {dashboard.upcomingAppointments.map((item) => (
-                    <div
-                      key={item._id}
-                      className="flex flex-wrap items-center justify-between gap-4 py-4"
-                    >
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {item.patientName}
-                        </p>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          {item.doctorId?.name ||
-                            "Doctor unavailable"}
-                          {" · "}
-                          {item.serviceId?.name ||
-                            "Service unavailable"}
-                        </p>
-                      </div>
-
-                      <div className="text-left sm:text-right">
-                        <p className="text-sm font-semibold text-slate-700">
-                          {formatDate(item.startAt)}
-                        </p>
-
-                        <p className="mt-1 text-xs font-semibold capitalize text-blue-600">
-                          {item.status}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-                  <CalendarDays
-                    size={30}
-                    className="mx-auto text-slate-400"
+              <div className="grid gap-3 sm:grid-cols-2">
+                {quickActions.map((action) => (
+                  <QuickAction
+                    key={action.title}
+                    {...action}
                   />
+                ))}
+              </div>
+            </section>
 
-                  <h3 className="mt-3 font-semibold text-slate-800">
-                    No upcoming appointments
-                  </h3>
+            {/* Clinic Status: existing UI + subscription details */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900">
+                Clinic Status
+              </h2>
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    Upcoming patient bookings will appear here
-                    once appointment booking is available.
+              <div className="mt-5 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-slate-500">
+                    Clinic
+                  </span>
+
+                  <span className="truncate text-sm font-semibold">
+                    {clinic.name}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">
+                    Status
+                  </span>
+
+                  <span
+                    className={`text-sm font-semibold capitalize ${
+                      subscriptionExpired
+                        ? "text-red-600"
+                        : "text-slate-900"
+                    }`}
+                  >
+                    {subscriptionExpired
+                      ? "Expired"
+                      : clinic.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">
+                    Active Doctors
+                  </span>
+
+                  <span className="text-sm font-semibold">
+                    {stats?.activeDoctors ?? 0}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">
+                    Website
+                  </span>
+
+                  <span className="inline-flex items-center gap-1 text-sm font-semibold">
+                    {websiteLive ? (
+                      <>
+                        <CheckCircle2
+                          size={15}
+                          className="text-green-600"
+                        />
+                        Published
+                      </>
+                    ) : subscriptionExpired ? (
+                      <span className="text-red-600">
+                        Offline
+                      </span>
+                    ) : (
+                      "Not published"
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Subscription countdown */}
+              {subscription?.currentPeriodEnd && (
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-slate-500">
+                        Subscription Validity
+                      </p>
+
+                      <p
+                        className={`mt-1 text-xl font-bold ${
+                          subscriptionExpired
+                            ? "text-red-600"
+                            : expiringSoon
+                              ? "text-amber-600"
+                              : "text-slate-900"
+                        }`}
+                      >
+                        {subscriptionExpired
+                          ? "Expired"
+                          : remainingDays !== null
+                            ? `${remainingDays} ${
+                                remainingDays === 1
+                                  ? "day"
+                                  : "days"
+                              } remaining`
+                            : "Unavailable"}
+                      </p>
+                    </div>
+
+                    <CalendarClock
+                      size={21}
+                      className={
+                        expiringSoon || subscriptionExpired
+                          ? "text-amber-500"
+                          : "text-slate-400"
+                      }
+                    />
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    {subscription.billingCycle === "yearly"
+                      ? "Yearly"
+                      : "Monthly"}{" "}
+                    Plan · Expires{" "}
+                    {formatDate(subscription.currentPeriodEnd)}
                   </p>
+
+                  {subscriptionActive &&
+                    remainingDays !== null && (
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            expiringSoon
+                              ? "bg-amber-500"
+                              : "bg-blue-600"
+                          }`}
+                          style={{
+                            width: `${
+                              Math.min(
+                                100,
+                                (remainingDays /
+                                  (subscription.billingCycle ===
+                                  "yearly"
+                                    ? 365
+                                    : 30)) *
+                                  100
+                              )
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    )}
+
+                  {expiringSoon && (
+                    <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <AlertTriangle
+                        size={18}
+                        className="mt-0.5 shrink-0 text-amber-600"
+                      />
+
+                      <p className="text-xs leading-relaxed text-amber-900">
+                        Your clinic website will be suspended in{" "}
+                        <strong>
+                          {remainingDays}{" "}
+                          {remainingDays === 1
+                            ? "day"
+                            : "days"}
+                        </strong>
+                        . Renew now to avoid interruption.
+                      </p>
+                    </div>
+                  )}
+
+                  {subscriptionExpired && (
+                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+                      <p className="text-xs leading-relaxed text-red-700">
+                        Your subscription has expired.
+                        Renew your plan to reactivate your
+                        clinic website and services.
+                      </p>
+                    </div>
+                  )}
+
+                  {(expiringSoon ||
+                    subscriptionExpired) && (
+                    <Link
+                      to={renewalUrl}
+                      className="mt-4 flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Renew Plan
+                    </Link>
+                  )}
                 </div>
               )}
+
+              {subscriptionError && (
+                <p className="mt-4 text-xs text-amber-700">
+                  {subscriptionError}
+                </p>
+              )}
+
+              <Link
+                to={`/dashboard/clinic/${clinicId}/website`}
+                className="mt-3 block rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
+              >
+                Website Settings
+              </Link>
             </section>
-          </>
-        )}
-      </div>
-    
+          </div>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Upcoming Appointments
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Your next scheduled patient visits
+                </p>
+              </div>
+
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                {dashboard.upcomingAppointments?.length || 0} shown
+              </span>
+            </div>
+
+            {dashboard.upcomingAppointments?.length ? (
+              <div className="divide-y divide-slate-100">
+                {dashboard.upcomingAppointments.map((item) => (
+                  <div
+                    key={item._id}
+                    className="flex flex-wrap items-center justify-between gap-4 py-4"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {item.patientName}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        {item.doctorId?.name ||
+                          "Doctor unavailable"}
+                        {" · "}
+                        {item.serviceId?.name ||
+                          "Service unavailable"}
+                      </p>
+                    </div>
+
+                    <div className="text-left sm:text-right">
+                      <p className="text-sm font-semibold text-slate-700">
+                        {formatDate(item.startAt)}
+                      </p>
+
+                      <p className="mt-1 text-xs font-semibold capitalize text-blue-600">
+                        {item.status}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                <CalendarDays
+                  size={30}
+                  className="mx-auto text-slate-400"
+                />
+
+                <h3 className="mt-3 font-semibold text-slate-800">
+                  No upcoming appointments
+                </h3>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  Upcoming patient bookings will appear here
+                  once appointment booking is available.
+                </p>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </div>
   );
 }

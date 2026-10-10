@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet, useParams } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
 
@@ -13,20 +13,25 @@ export default function ClinicDashboardShell() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const refreshClinic = useCallback(async () => {
+    const { data } = await api.get(`/clinics/${clinicId}`);
+    setClinic(data.clinic);
+    return data.clinic;
+  }, [clinicId]);
+
   useEffect(() => {
     let active = true;
 
-    async function loadClinic() {
+    async function initialize() {
       setLoading(true);
       setError("");
+      setClinic(null);
 
       try {
-        const response = await api.get(
-          `/clinics/${clinicId}`
-        );
+        const { data } = await api.get(`/clinics/${clinicId}`);
 
         if (active) {
-          setClinic(response.data.clinic);
+          setClinic(data.clinic);
         }
       } catch (err) {
         if (active) {
@@ -36,13 +41,11 @@ export default function ClinicDashboardShell() {
           );
         }
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
 
-    loadClinic();
+    initialize();
 
     return () => {
       active = false;
@@ -52,10 +55,7 @@ export default function ClinicDashboardShell() {
   if (loading) {
     return (
       <main className="flex min-h-dvh items-center justify-center gap-3">
-        <LoaderCircle
-          size={20}
-          className="animate-spin"
-        />
+        <LoaderCircle size={20} className="animate-spin" />
         Loading clinic workspace...
       </main>
     );
@@ -73,7 +73,7 @@ export default function ClinicDashboardShell() {
 
   return (
     <DashboardLayout clinicId={clinicId} clinic={clinic}>
-      <Outlet context={{ clinic }} />
+      <Outlet context={{ clinic, refreshClinic }} />
     </DashboardLayout>
   );
 }

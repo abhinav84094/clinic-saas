@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
 
 import api from "../services/api";
-import ClinicWebsiteTemplate from "../components/clinic/ClinicWebsiteTemplate";
+import ClinicTemplateRenderer from "../components/clinic/ClinicTemplateRenderer";
 import DoctorAvailabilityModal from "../components/clinic/DoctorAvailabilityModal";
 import { getClinicSlugFromHostname } from "../utils/clinicDomain";
 
@@ -96,12 +96,15 @@ export default function PublicClinicPage() {
   return (
     <>
       <main>
-        <ClinicWebsiteTemplate
-          clinic={data.clinic}
-          doctors={data.doctors || []}
-          services={services}
-          onSelectDoctor={setSelectedDoctor}
+        
+        <ClinicTemplateRenderer
+        templateId={data.clinic.website?.templateId || "A"}
+        clinic={data.clinic}
+        doctors={data.doctors || []}
+        services={services}
+        onSelectDoctor={setSelectedDoctor}
         />
+
       </main>
 
       <DoctorAvailabilityModal

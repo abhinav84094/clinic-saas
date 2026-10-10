@@ -169,6 +169,7 @@ export const updateClinicProfile = async (
     "contact",
     "address",
     "branding",
+    "website",
   ];
 
   for (const group of nestedFields) {

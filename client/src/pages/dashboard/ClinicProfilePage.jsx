@@ -1,6 +1,6 @@
 
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useOutletContext } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
@@ -115,6 +115,7 @@ function Field({
 export default function ClinicProfilePage() {
   const { clinicId } = useParams();
   const navigate = useNavigate();
+  const { refreshClinic } = useOutletContext();
 
   const [clinic, setClinic] = useState(null);
   const [form, setForm] = useState(initialForm);
@@ -265,16 +266,30 @@ export default function ClinicProfilePage() {
 
     setSaving(true);
 
-    try {
-      await api.patch(`/clinics/${clinicId}`, payload);
-      await loadClinic();
 
-      setSuccess("Clinic profile updated successfully.");
-    } catch (err) {
-      setError(getError(err));
-    } finally {
-      setSaving(false);
+    try {
+    await api.patch(`/clinics/${clinicId}`, payload);
+
+    // Refresh profile fields after successful save
+    await loadClinic();
+
+    // Refresh parent dashboard shell (sidebar + header)
+    try {
+        await refreshClinic();
+    } catch {
+        setError(
+        "Profile saved, but dashboard information could not be refreshed. Please reload the page."
+        );
+        return;
     }
+
+    setSuccess("Clinic profile updated successfully.");
+    } catch (err) {
+    setError(getError(err));
+    } finally {
+    setSaving(false);
+    }
+
   }
 
   async function refresh() {

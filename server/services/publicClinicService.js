@@ -63,7 +63,7 @@ export const getPublicClinicBySlug = async (slugValue) => {
     status: "active",
   })
     .select(
-      "name slug description contact address branding timezone"
+      "name slug description contact address branding timezone website"
     )
     .lean();
 
@@ -158,6 +158,9 @@ export const getPublicClinicServices = async (slugValue) => {
       qualifications: doctor.qualifications,
       fee: offering.fee,
       durationMinutes: offering.durationMinutes,
+      website: {
+        templateId: clinic.website?.templateId || "A",
+      },
     });
   }
 
