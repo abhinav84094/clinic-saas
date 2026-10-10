@@ -44,6 +44,11 @@ export default function ServicesSetupPage() {
   const activeDoctors = doctors.filter((d) => d.isActive);
   const activeServices = services.filter((s) => s.isActive);
   const isDraft = clinic?.status === "draft";
+
+  const canManage =
+    clinic?.status === "draft" ||
+    clinic?.status === "active";
+    
   const clearMessages = () => { setError(""); setSuccess(""); };
   const doctorName = (id) => doctors.find((d) => idOf(d) === idOf(id))?.name || "Doctor";
   const serviceName = (id) => services.find((s) => idOf(s) === idOf(id))?.name || "Service";

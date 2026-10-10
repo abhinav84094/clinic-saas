@@ -20,7 +20,6 @@ import {
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { getClinicPublicUrl } from "../utils/clinicDomain";
-import DashboardLayout from "../components/dashboard/DashboardLayout";
 
 const formatDate = (value) => {
   if (!value) return "Date unavailable";
@@ -176,36 +175,38 @@ export default function DashboardPage() {
     },
   ];
 
-  const quickActions = [
-    {
-      title: "Manage Doctors",
-      description: "Add or update doctor profiles",
-      icon: Stethoscope,
-      to: `/clinics/${clinicId}/doctors/setup`,
-    },
-    {
-      title: "Manage Services",
-      description: "Consultations, pricing and services",
-      icon: ClipboardList,
-      to: `/clinics/${clinicId}/services/setup`,
-    },
-    {
-      title: "Manage Availability",
-      description: "Configure doctor working schedules",
-      icon: Clock3,
-      to: `/clinics/${clinicId}/services/setup`,
-    },
-    {
-      title: "Clinic Profile",
-      description: "Update clinic information",
-      icon: Plus,
-      to: `/clinics/${clinicId}/setup`,
-    },
-  ];
+
+const quickActions = [
+  {
+    title: "Manage Doctors",
+    description: "Add or update doctor profiles",
+    icon: Stethoscope,
+    to: `/dashboard/clinic/${clinicId}/doctors`,
+  },
+  {
+    title: "Manage Services",
+    description: "Consultations, pricing and services",
+    icon: ClipboardList,
+    to: `/dashboard/clinic/${clinicId}/services`,
+  },
+  {
+    title: "Manage Availability",
+    description: "Configure doctor working schedules",
+    icon: Clock3,
+    to: `/dashboard/clinic/${clinicId}/services`,
+  },
+  {
+    title: "Clinic Profile",
+    description: "Update clinic information",
+    icon: Plus,
+    to: `/dashboard/clinic/${clinicId}/profile`,
+  },
+];
+
 
   return (
-    <DashboardLayout clinicId={clinicId} clinic={clinic}>
-      <div className="space-y-7">
+
+    <div className="space-y-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -463,6 +464,6 @@ export default function DashboardPage() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    
   );
 }

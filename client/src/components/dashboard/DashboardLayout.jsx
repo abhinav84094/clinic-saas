@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 
+
 const navigation = [
   {
     label: "Overview",
@@ -28,22 +29,22 @@ const navigation = [
   {
     label: "Clinic Profile",
     icon: Settings,
-    path: (id) => `/clinics/${id}/setup`,
+    path: (id) => `/dashboard/clinic/${id}/profile`,
   },
   {
     label: "Doctors",
     icon: Stethoscope,
-    path: (id) => `/clinics/${id}/doctors/setup`,
+    path: (id) => `/dashboard/clinic/${id}/doctors`,
   },
   {
     label: "Services & Availability",
     icon: CalendarClock,
-    path: (id) => `/clinics/${id}/services/setup`,
+    path: (id) => `/dashboard/clinic/${id}/services`,
   },
   {
     label: "Website",
     icon: Globe2,
-    path: (id) => `/clinics/${id}/website/setup`,
+    path: (id) => `/dashboard/clinic/${id}/website`,
   },
   {
     label: "Appointments",
@@ -66,6 +67,7 @@ const navigation = [
     comingSoon: true,
   },
 ];
+
 
 function SidebarContent({ clinicId, clinic, onNavigate }) {
   return (

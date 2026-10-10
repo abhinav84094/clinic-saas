@@ -29,7 +29,12 @@ import PublicClinicPage from "./pages/PublicClinicPage";
 import SubscriptionSetupPage from "./pages/SubscriptionSetupPage";
 import ReviewPublishPage from "./pages/ReviewPublishPage";
 
+import ClinicDashboardShell from "./components/dashboard/ClinicDashboardShell";
+
 import { getClinicSlugFromHostname } from "./utils/clinicDomain";
+
+import ServicesManagementPage from "./pages/dashboard/ServicesManagementPage";
+
 
 function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -62,10 +67,6 @@ function GooglePasswordSetupPage() {
     return <Navigate to="/my-clinics" replace />;
   }
 
-  if (!credential) {
-    return <Navigate to="/login" replace />;
-  }
-
   const handleComplete = async (user) => {
     setAuthenticatedUser(user);
     navigate("/my-clinics", { replace: true });
@@ -95,8 +96,7 @@ function GooglePasswordSetupPage() {
 export default function App() {
   const subdomainSlug = getClinicSlugFromHostname();
 
-  // On a clinic subdomain, show only its public website.
-  // Example: prakash-consultancy.yourdomain.com
+  // Public clinic subdomain
   if (subdomainSlug) {
     return (
       <BrowserRouter>
@@ -110,15 +110,17 @@ export default function App() {
     );
   }
 
-  // Main SaaS application and local development routes.
   return (
     <BrowserRouter>
       <Routes>
         <Route
           path="/"
-          element={<Navigate to="/my-clinics" replace />}
+          element={
+            <Navigate to="/my-clinics" replace />
+          }
         />
 
+        {/* Authentication */}
         <Route
           path="/login"
           element={
@@ -151,12 +153,14 @@ export default function App() {
           element={<GooglePasswordSetupPage />}
         />
 
+        {/* Protected application routes */}
         <Route element={<ProtectedRoute />}>
           <Route
             path="/my-clinics"
             element={<MyClinicsPage />}
           />
 
+          {/* Clinic onboarding */}
           <Route
             path="/clinics/new"
             element={<ClinicSetupPage />}
@@ -168,13 +172,13 @@ export default function App() {
           />
 
           <Route
-            path="/clinics/:clinicId/services/setup"
-            element={<ServicesSetupPage />}
+            path="/clinics/:clinicId/doctors/setup"
+            element={<AddDoctorsPage />}
           />
 
           <Route
-            path="/clinics/:clinicId/doctors/setup"
-            element={<AddDoctorsPage />}
+            path="/clinics/:clinicId/services/setup"
+            element={<ServicesSetupPage />}
           />
 
           <Route
@@ -192,10 +196,41 @@ export default function App() {
             element={<ReviewPublishPage />}
           />
 
+          {/* Unified clinic owner dashboard */}
           <Route
             path="/dashboard/clinic/:clinicId"
-            element={<DashboardPage />}
-          />
+            element={<ClinicDashboardShell />}
+          >
+
+            <Route
+              path="services"
+              element={<ServicesManagementPage />}
+            />
+            <Route
+              index
+              element={<DashboardPage />}
+            />
+
+            <Route
+              path="profile"
+              element={<ClinicSetupPage />}
+            />
+
+            <Route
+              path="doctors"
+              element={<AddDoctorsPage />}
+            />
+
+            <Route
+              path="services"
+              element={<ServicesSetupPage />}
+            />
+
+            <Route
+              path="website"
+              element={<WebsiteSetupPage />}
+            />
+          </Route>
 
           <Route
             path="/dashboard"
@@ -205,12 +240,13 @@ export default function App() {
           />
         </Route>
 
-        {/* Local development / legacy public route */}
+        {/* Local public clinic route */}
         <Route
           path="/c/:slug"
           element={<PublicClinicPage />}
         />
 
+        {/* 404 */}
         <Route
           path="*"
           element={
@@ -218,7 +254,11 @@ export default function App() {
               <h1 className="text-2xl font-bold">
                 404 — Page Not Found
               </h1>
-              <a href="/" className="text-blue-600">
+
+              <a
+                href="/"
+                className="text-blue-600"
+              >
                 Return Home
               </a>
             </main>
