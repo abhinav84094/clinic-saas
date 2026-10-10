@@ -37,41 +37,21 @@ const bioSchema = z
   .max(10000, "Bio cannot exceed 10000 characters")
   .optional();
 
-const photoUrlSchema = z
-  .union([
-    z.url().refine(
-      (value) => {
-        const protocol = new URL(value).protocol;
-        return protocol === "https:" || protocol === "http:";
-      },
-      "Photo URL must use HTTP or HTTPS"
-    ),
-    z.literal(""),
-  ])
-  .optional();
-
 export const createDoctorSchema = z.strictObject({
   name: doctorNameSchema,
   qualifications: qualificationsSchema,
   specialization: specializationSchema,
   experienceYears: experienceYearsSchema,
   bio: bioSchema,
-  photoUrl: photoUrlSchema,
 });
 
 export const updateDoctorSchema = z
   .strictObject({
     name: doctorNameSchema.optional(),
-
     qualifications: qualificationsSchema.optional(),
-
     specialization: specializationSchema,
-
     experienceYears: experienceYearsSchema,
-
     bio: bioSchema,
-
-    photoUrl: photoUrlSchema,
   })
   .refine(
     (data) => Object.keys(data).length > 0,

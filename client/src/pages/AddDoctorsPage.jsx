@@ -163,6 +163,8 @@ export default function AddDoctorsPage() {
     event.target.value = "";
   }
 
+  
+
   async function uploadPhoto(doctorId) {
     if (!photoFile) return;
 
