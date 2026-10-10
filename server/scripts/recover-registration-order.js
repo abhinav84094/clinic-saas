@@ -49,6 +49,8 @@ try {
     }
     if (!records.length) await SubscriptionPayment.create([fields], {session});
     current.paymentOrderLock = null;
+    current.paymentOrderLockedAt = null;
+    current.paymentOrderDraft = null;
     await current.save({session});
   });
   console.log("Payment record restored and checkout unlocked. Existing order will be reused.");

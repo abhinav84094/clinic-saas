@@ -77,6 +77,19 @@ const subscriptionPaymentSchema = new Schema(
     },
 
     financialReviewRequired: { type: Boolean, default: false },
+    financialEventKeys: { type: [String], default: [] },
+    resolvedRefundAmount: { type: Number, default: null, min: 0 },
+    supportHistory: {
+      type: [{
+        action: { type: String, required: true },
+        operator: { type: String, required: true },
+        reason: { type: String, required: true },
+        at: { type: Date, required: true },
+        previousStatus: String,
+        entitlement: String,
+      }],
+      default: [],
+    },
 
     reviewRequiredAt: {
       type: Date,

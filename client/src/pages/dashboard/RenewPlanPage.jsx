@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -37,7 +37,8 @@ const formatMoney = (amount) => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 
@@ -58,6 +59,8 @@ export default function RenewPlanPage() {
   const [cycle, setCycle] = useState("monthly");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [recovery, setRecovery] = useState(null);
+  const busy = useRef(false);
   const [now, setNow] = useState(() => Date.now());
 
   const base = `/dashboard/clinic/${clinicId}`;
@@ -82,8 +85,11 @@ export default function RenewPlanPage() {
           subscriptionResponse.data.subscription;
 
         setSubscription(current);
+        const status = await api.get(`${apiBase}/subscription/pending-payment?purpose=renewal`);
+        if (!active) return;
+        setRecovery(status.data);
         setCycle(
-          current?.billingCycle === "yearly"
+          (status.data.payment?.billingCycle || current?.billingCycle) === "yearly"
             ? "yearly"
             : "monthly"
         );
@@ -113,19 +119,45 @@ export default function RenewPlanPage() {
 
   const [paying, setPaying] = useState(false);
   const [notice, setNotice] = useState("");
-  async function renew() {
-    if (paying) return;
+  async function refreshPayment() {
+    const [status, current] = await Promise.all([
+      api.get(`${apiBase}/subscription/pending-payment?purpose=renewal`),
+      api.get(`${apiBase}/subscription`),
+    ]);
+    setRecovery(status.data);
+    setSubscription(current.data.subscription);
+    if (status.data.payment?.purpose === "renewal") setCycle(status.data.payment.billingCycle);
+    return current.data.subscription;
+  }
+
+  async function paymentAction(action) {
+    if (busy.current) return;
+    busy.current = true;
     setPaying(true);
     setError("");
     try {
-      const result = await openSubscriptionCheckout(`/clinics/${clinicId}`, "renewal", {billingCycle: cycle});
+      if (action === "refresh") {
+        await refreshPayment();
+        return;
+      }
+      const result = action === "verify"
+        ? (await api.post(`${apiBase}/subscription/reconcile-payment`, {
+            razorpay_order_id: recovery.payment.orderId,
+          })).data
+        : await openSubscriptionCheckout(apiBase, "renewal", { billingCycle: cycle }, {
+            onOrder: order => setRecovery({ payment: { ...order, billingCycle: cycle, purpose: "renewal", orderStatus: "created" } }),
+          });
       if (!result.success || result.subscription?.status !== "active") throw new Error("Payment requires support review");
-      const {data} = await api.get(`/clinics/${clinicId}/subscription`);
-      setSubscription(data.subscription);
+      await refreshPayment();
       setNotice("Subscription renewed successfully.");
-    } catch (error) {
-      setError(error.response?.data?.message || error.message);
-    } finally { setPaying(false); }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      try { await refreshPayment(); }
+      catch { setRecovery(previous => ({ ...previous, processing: true })); }
+    } finally {
+      busy.current = false;
+      setPaying(false);
+    }
   }
 
   const remaining = getDaysLeft(
@@ -141,11 +173,7 @@ export default function RenewPlanPage() {
     clinic?.status === "expired" ||
     (Number.isFinite(expiry) && expiry <= now);
 
-  const canRenew =
-    expired ||
-    (subscription?.status === "active" &&
-      remaining !== null &&
-      remaining <= 7);
+  const canRenew = expired;
 
   const durationDays = cycle === "yearly" ? 365 : 30;
 
@@ -153,6 +181,11 @@ export default function RenewPlanPage() {
   // priceSnapshot is only the previously stored price.
   const currentPrice =
     formatMoney(subscription?.price);
+  const configuredPrice = subscription?.plans?.basic?.prices?.[cycle];
+  const existingQuote = recovery?.payment;
+  const quotedPrice = existingQuote?.purpose === "renewal" && existingQuote.billingCycle === cycle &&
+    (!existingQuote.expired || existingQuote.amount === Math.round(configuredPrice * 100))
+    ? existingQuote.amount / 100 : configuredPrice;
 
   if (loading) {
     return (
@@ -163,7 +196,7 @@ export default function RenewPlanPage() {
     );
   }
 
-  if (error || !clinic || !subscription) {
+  if (!clinic || !subscription) {
     return (
       <div className="space-y-4">
         <Link
@@ -199,7 +232,7 @@ export default function RenewPlanPage() {
           Renew Subscription
         </h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Renew the existing plan for {clinic.name}.
+          Renew {clinic.name} with the Basic plan.
         </p>
       </div>
 
@@ -214,8 +247,7 @@ export default function RenewPlanPage() {
               Your subscription is still active
             </p>
             <p className="mt-1 text-sm text-blue-800 dark:text-blue-300">
-              Renewal becomes available during the final
-              7 days of your subscription.
+              Renewal becomes available after your subscription expires.
             </p>
           </div>
         </div>
@@ -239,6 +271,18 @@ export default function RenewPlanPage() {
         </div>
       )}
 
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">{error}</div>}
+      {(recovery?.processing || recovery?.requiresReview || recovery?.payment) && (
+        <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm dark:border-blue-800 dark:bg-blue-950/40">
+          <p>{recovery.requiresReview ? "A payment needs support review. Please contact support before paying again." : recovery.processing ? "Payment confirmation is being recovered. Refresh its status before paying again." : `Existing ${recovery.payment.purpose} order: ${recovery.payment.orderId} (${formatMoney(recovery.payment.amount / 100)}). Check it before starting another payment.`}</p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" disabled={paying} onClick={() => paymentAction("refresh")} className="rounded-lg border px-4 py-2 disabled:opacity-50">Refresh Payment Status</button>
+            {recovery.payment && !recovery.requiresReview && <button type="button" disabled={paying} onClick={() => paymentAction("verify")} className="rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Verify Existing Payment</button>}
+          </div>
+        </div>
+      )}
+      {!recovery && <button type="button" disabled={paying} onClick={() => paymentAction("refresh")} className="rounded-lg border px-4 py-2">Retry Payment Status</button>}
+
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-7">
           <div className="flex items-center gap-3">
@@ -247,10 +291,10 @@ export default function RenewPlanPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold capitalize text-slate-900 dark:text-slate-100">
-                {subscription.plan} Plan
+                Basic Renewal Plan
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Continue with your existing plan
+                Start a new Basic subscription after expiry
               </p>
             </div>
           </div>
@@ -263,7 +307,7 @@ export default function RenewPlanPage() {
                 <button
                   key={option}
                   type="button"
-                  disabled={!canRenew}
+                  disabled={!canRenew || paying || recovery?.processing || recovery?.requiresReview}
                   aria-pressed={selected}
                   onClick={() => setCycle(option)}
                   className={`rounded-2xl border-2 p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -359,7 +403,7 @@ export default function RenewPlanPage() {
                 Plan
               </span>
               <span className="font-semibold capitalize">
-                {subscription.plan}
+                Basic
               </span>
             </div>
 
@@ -387,22 +431,22 @@ export default function RenewPlanPage() {
               Total Payable
             </p>
             <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-slate-100">
-              {formatMoney(subscription?.plans?.basic?.prices?.[cycle]) || "Calculated at checkout"}
+              {formatMoney(quotedPrice) || "Calculated at checkout"}
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-              Final pricing must come from the backend
-              for the selected plan and billing cycle.
+              Your quote keeps its price for one hour. If an older
+              quote's price changed, checkout refreshes it before payment.
             </p>
           </div>
 
           <button
             type="button"
-            disabled={!expired || paying}
-            onClick={renew}
+            disabled={!expired || paying || !recovery || recovery.processing || recovery.requiresReview || (recovery.payment && recovery.payment.orderStatus !== "created")}
+            onClick={() => paymentAction("checkout")}
             className="mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 font-semibold text-white disabled:opacity-50"
           >
             {paying ? <LoaderCircle size={18} className="animate-spin" /> : <CreditCard size={18} />}
-            Continue to Payment
+            {recovery?.payment?.purpose === "renewal" && recovery.payment.orderStatus === "created" ? "Resume / Update Checkout" : "Continue to Payment"}
           </button>
 
           <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">

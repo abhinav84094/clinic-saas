@@ -63,6 +63,8 @@ const clinicSubscriptionSchema = new Schema(
       min: 0,
     },
 
+    activePaymentId: { type: Schema.Types.ObjectId, ref: "SubscriptionPayment", default: null },
+
     priceSnapshot: {
       type: Number,
       required: true,

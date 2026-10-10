@@ -57,6 +57,8 @@ export const getPendingPaymentController = async (
       );
     }
 
+    const purpose = req.query?.purpose;
+    if (purpose && !["registration", "upgrade", "renewal"].includes(purpose)) throw fail("Invalid payment purpose", 400);
     await recoverCheckout(clinicId);
     const subscription = await ClinicSubscription.findOne({
       clinicId,
@@ -64,22 +66,6 @@ export const getPendingPaymentController = async (
 
     if (!subscription) {
       throw fail("Subscription not found", 404);
-    }
-
-    if (subscription.status === "active") {
-      return res.status(200).json({
-        message: "Subscription is already active",
-        subscriptionStatus: "active",
-        payment: null,
-        canChangeBillingCycle: false,
-        requiresReview: false,
-      });
-    }
-
-    if (subscription.status !== "pending") {
-      throw fail(
-        "Subscription is not eligible for checkout"
-      );
     }
 
     // Never report checkout as switchable while an
@@ -110,22 +96,10 @@ export const getPendingPaymentController = async (
       });
     }
 
-    const paidRecord = await SubscriptionPayment.exists({
-      clinicId,
-      subscriptionId: subscription._id,
-      status: "paid",
-    });
-
-    if (paidRecord) {
-      throw fail(
-        "A previous payment needs reconciliation before checkout"
-      );
-    }
-
     const records = await SubscriptionPayment.find({
       clinicId,
       subscriptionId: subscription._id,
-      status: "created",
+      status: { $in: ["created", "abandoned", "superseded"] },
     })
       .sort({ createdAt: -1 })
       .lean();
@@ -135,7 +109,7 @@ export const getPendingPaymentController = async (
         message: "No pending checkout",
         subscriptionStatus: subscription.status,
         payment: null,
-        canChangeBillingCycle: true,
+        canChangeBillingCycle: subscription.status === "pending",
         requiresReview: false,
       });
     }
@@ -144,7 +118,7 @@ export const getPendingPaymentController = async (
 
     let retryable = null;
     let unresolved = null;
-    let allExpiredAndRetryable = true;
+    let allRetryable = true;
 
     for (const record of records) {
       const remote = await razorpay.orders.fetch(
@@ -152,17 +126,6 @@ export const getPendingPaymentController = async (
       );
 
       validateOrderIdentity(remote, record);
-
-      if (
-        record.plan !== subscription.plan ||
-        record.billingCycle !== subscription.billingCycle ||
-        record.amount !==
-          subscription.priceSnapshot * 100
-      ) {
-        throw fail(
-          "Payment history does not match current subscription"
-        );
-      }
 
       const state = await classifyRazorpayOrder(
         razorpay,
@@ -175,12 +138,14 @@ export const getPendingPaymentController = async (
         Number.isFinite(expiresAt.getTime()) &&
         Date.now() >= expiresAt.getTime();
 
-      if (state !== "retryable" || !expired) {
-        allExpiredAndRetryable = false;
+      if (state !== "retryable") {
+        allRetryable = false;
       }
 
       const payment = {
         orderId: record.razorpayOrderId,
+        purpose: record.purpose,
+        plan: record.plan,
         amount: record.amount,
         currency: record.currency,
         billingCycle: record.billingCycle,
@@ -204,7 +169,7 @@ export const getPendingPaymentController = async (
         if (!unresolved) {
           unresolved = payment;
         }
-      } else if (!retryable) {
+      } else if (!retryable && record.status === "created" && (!purpose || record.purpose === purpose)) {
         retryable = payment;
       }
     }
@@ -214,7 +179,7 @@ export const getPendingPaymentController = async (
       subscriptionStatus: subscription.status,
       payment: unresolved || retryable,
       canChangeBillingCycle:
-        !unresolved && allExpiredAndRetryable,
+        subscription.status === "pending" && !unresolved && allRetryable,
       requiresReview: false,
     });
   } catch (error) {

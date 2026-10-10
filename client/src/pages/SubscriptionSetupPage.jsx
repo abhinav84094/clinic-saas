@@ -164,7 +164,7 @@ export default function SubscriptionSetupPage() {
 
         if (canSwitch) {
           setNotice(
-            "Your previous checkout is over 1 hour old. You can change the billing cycle or continue with the existing order."
+            "Your earlier checkout has no payment in progress. You can change the billing cycle or continue with the existing order."
           );
         } else {
           setNotice(

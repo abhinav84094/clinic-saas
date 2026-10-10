@@ -18,8 +18,6 @@ import {
 const fail = (message, statusCode = 409) =>
   Object.assign(new Error(message), { statusCode });
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
-
 const validateIds = (clinicId, userId) => {
   if (
     !mongoose.isValidObjectId(clinicId) ||
@@ -55,16 +53,6 @@ const formatSubscription = (subscription) => ({
   currentPeriodStart: subscription.currentPeriodStart,
   currentPeriodEnd: subscription.currentPeriodEnd,
 });
-
-const getExpiry = (record) => {
-  if (record.expiresAt) {
-    return new Date(record.expiresAt);
-  }
-
-  return new Date(
-    new Date(record.createdAt).getTime() + ONE_HOUR_MS
-  );
-};
 
 export const getClinicSubscriptionSetup = async ({
   clinicId,
@@ -132,6 +120,8 @@ export const updateSubscriptionBillingCycle = async ({
     {
       $set: {
         paymentOrderLock: token,
+        paymentOrderLockedAt: new Date(),
+        paymentOrderDraft: null,
       },
     },
     { returnDocument: 'after' }
@@ -151,7 +141,7 @@ export const updateSubscriptionBillingCycle = async ({
     const needsReview = await SubscriptionPayment.exists({
       clinicId,
       subscriptionId: subscription._id,
-      status: { $in: ["paid", "review_required"] },
+      $or: [{ status: { $in: ["paid", "review_required"] } }, { financialReviewRequired: true }],
     });
 
     if (needsReview) {
@@ -160,27 +150,17 @@ export const updateSubscriptionBillingCycle = async ({
       );
     }
 
-    const createdOrders = await SubscriptionPayment.find({
+    const unresolvedOrders = await SubscriptionPayment.find({
       clinicId,
       subscriptionId: subscription._id,
-      status: "created",
+      status: { $in: ["created", "abandoned", "superseded"] },
     }).sort({ createdAt: -1 });
+    const createdOrders = unresolvedOrders.filter(record => record.status === "created");
 
     const razorpay = getRazorpay();
 
     // Inspect every current order before superseding.
-    for (const record of createdOrders) {
-      const expiresAt = getExpiry(record);
-
-      if (
-        !Number.isFinite(expiresAt.getTime()) ||
-        Date.now() < expiresAt.getTime()
-      ) {
-        throw fail(
-          "Please wait until the existing checkout's 1-hour window ends"
-        );
-      }
-
+    for (const record of unresolvedOrders) {
       const remote = await razorpay.orders.fetch(
         record.razorpayOrderId
       );
@@ -244,7 +224,7 @@ export const updateSubscriptionBillingCycle = async ({
 
         if (
           payments.some((payment) =>
-            ["paid", "review_required"].includes(payment.status)
+            ["paid", "review_required"].includes(payment.status) || payment.financialReviewRequired
           )
         ) {
           throw fail("A previous payment requires review");
@@ -317,6 +297,8 @@ export const updateSubscriptionBillingCycle = async ({
       {
         $set: {
           paymentOrderLock: null,
+          paymentOrderLockedAt: null,
+          paymentOrderDraft: null,
         },
       }
     );

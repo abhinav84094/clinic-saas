@@ -4,11 +4,13 @@ import crypto from "node:crypto";
 
 import ClinicSubscription from "../models/ClinicSubscription.js";
 import SubscriptionPayment from "../models/SubscriptionPayment.js";
+import SubscriptionCheckoutArchive from "../models/SubscriptionCheckoutArchive.js";
 import ClinicMembership from "../models/ClinicMembership.js";
 
 import { getRazorpay } from "../config/razorpay.js";
 import { getPlanConfig, toPaise } from "./subscriptionService.js";
 
+import { canReuseQuote, clearedCheckoutLock, findOrdersByReceipt } from "./subscriptionCheckoutPolicy.js";
 import { calculateUpgradeQuota } from "./subscriptionQuotaService.js";
 
 
@@ -89,6 +91,7 @@ export const classifyRazorpayOrder = async (razorpay, remote) => {
 const processCapturedPayment = async ({
   record,
   razorpayPaymentId,
+  supportDecision = null,
 }) => {
   const session = await mongoose.startSession();
 
@@ -135,7 +138,7 @@ const processCapturedPayment = async ({
         return;
       }
 
-      if (payment.status === "review_required") {
+      if (payment.status === "review_required" && !supportDecision) {
         if (payment.razorpayPaymentId !== razorpayPaymentId) {
           throw fail("Payment review conflict");
         }
@@ -150,7 +153,7 @@ const processCapturedPayment = async ({
       }
 
       if (
-        !["created", "abandoned", "superseded"].includes(
+        !["created", "abandoned", "superseded", ...(supportDecision ? ["review_required"] : [])].includes(
           payment.status
         )
       ) {
@@ -201,7 +204,7 @@ const processCapturedPayment = async ({
       // REGISTRATION: only pending Basic.
       if (purpose === "registration") {
         eligible =
-          payment.status === "created" &&
+          (payment.status === "created" || Boolean(supportDecision)) &&
           payment.plan === "basic" &&
           subscription.status === "pending" &&
           subscription.plan === "basic" &&
@@ -212,7 +215,7 @@ const processCapturedPayment = async ({
       // UPGRADE: active, unexpired, higher plan.
       if (purpose === "upgrade") {
         eligible =
-          payment.status === "created" &&
+          (payment.status === "created" || Boolean(supportDecision)) &&
           active &&
           sourcePeriodMatches &&
           subscription.plan === payment.fromPlan &&
@@ -232,7 +235,7 @@ const processCapturedPayment = async ({
       // RENEWAL: expired clinic returns to Basic.
       if (purpose === "renewal") {
         eligible =
-          payment.status === "created" &&
+          (payment.status === "created" || Boolean(supportDecision)) &&
           expired &&
           sourcePeriodMatches &&
           payment.plan === "basic" &&
@@ -245,7 +248,7 @@ const processCapturedPayment = async ({
       if (!eligible || !validPrice) {
         payment.status = "review_required";
         payment.razorpayPaymentId = razorpayPaymentId;
-        payment.paidAt = now;
+        payment.paidAt ||= now;
         payment.reviewRequiredAt = now;
         payment.reviewReason =
           "Captured payment cannot safely activate the selected subscription";
@@ -264,11 +267,18 @@ const processCapturedPayment = async ({
         payment.billingCycle === "monthly" ? 30 : 365;
 
       // Validity starts when the captured payment is verified and recorded.
-      const end = new Date(now.getTime() + days * 86400000);
+      const startsAt = supportDecision && payment.paidAt ? new Date(payment.paidAt) : now;
+      const end = new Date(startsAt.getTime() + days * 86400000);
+      if (supportDecision && end <= now) throw fail("Paid subscription period has already ended; resolve by refund instead");
 
       payment.status = "paid";
       payment.razorpayPaymentId = razorpayPaymentId;
-      payment.paidAt = now;
+      payment.paidAt = startsAt;
+      if (supportDecision) {
+        payment.supportHistory.push({ ...supportDecision, action: "activate", at: now, previousStatus: record.status, entitlement: "activate" });
+        payment.reviewReason = null;
+        payment.reviewRequiredAt = null;
+      }
 
       subscription.plan = payment.plan;
       subscription.billingCycle = payment.billingCycle;
@@ -277,8 +287,9 @@ const processCapturedPayment = async ({
       subscription.bookingLimit = newBookingLimit === null ? null : newBookingLimit + bookingsUsed;
       subscription.bookingsUsed = bookingsUsed;
       subscription.status = "active";
-      subscription.currentPeriodStart = now;
+      subscription.currentPeriodStart = startsAt;
       subscription.currentPeriodEnd = end;
+      subscription.activePaymentId = payment._id;
 
       await payment.save({ session });
       await subscription.save({ session });
@@ -292,7 +303,7 @@ const processCapturedPayment = async ({
         billingCycle: subscription.billingCycle,
         bookingLimit: subscription.bookingLimit,
         bookingsUsed: subscription.bookingsUsed,
-        currentPeriodStart: now,
+        currentPeriodStart: startsAt,
         currentPeriodEnd: end,
         alreadyProcessed: false,
       };
@@ -310,6 +321,7 @@ const verifyCapturedPayment = async ({
   record,
   razorpayPaymentId,
   razorpay,
+  supportDecision = null,
 }) => {
   const [remotePayment, remoteOrder] = await Promise.all([
     razorpay.payments.fetch(razorpayPaymentId),
@@ -321,7 +333,7 @@ const verifyCapturedPayment = async ({
   if (
     remotePayment.id !== razorpayPaymentId ||
     remotePayment.order_id !== record.razorpayOrderId ||
-    remotePayment.status !== "captured" ||
+    !["captured", "refunded"].includes(remotePayment.status) ||
     remotePayment.amount !== record.amount ||
     remotePayment.currency !== record.currency ||
     remoteOrder.status !== "paid"
@@ -329,9 +341,20 @@ const verifyCapturedPayment = async ({
     throw fail("Payment has not been captured");
   }
 
+  if (["refunded", "failed"].includes(record.status) && record.razorpayPaymentId === razorpayPaymentId && record.supportHistory?.some(entry => ["refund", "dispute-lost"].includes(entry.action))) {
+    return { paymentId: record._id, status: record.status, alreadyProcessed: true };
+  }
+  if (remotePayment.status === "refunded" || ((remotePayment.amount_refunded || 0) > 0 && record.resolvedRefundAmount !== remotePayment.amount_refunded)) {
+    if (supportDecision) throw fail("Refunded payments cannot activate a subscription");
+    await SubscriptionPayment.updateOne({ _id: record._id }, { $set: {
+      razorpayPaymentId, financialReviewRequired: true, reviewRequiredAt: new Date(), reviewReason: "Refund requires an explicit support decision",
+    } });
+    return { paymentId: record._id, status: "review_required", requiresReview: true };
+  }
   return processCapturedPayment({
     record,
     razorpayPaymentId,
+    supportDecision,
   });
 };
 
@@ -368,6 +391,33 @@ const validatePaymentDraft = async (fields) => {
   return fields;
 };
 
+const persistCreatedOrder = async (fields, remote, subscription, token) => {
+  validateOrderIdentity(remote, fields);
+  if (!Number.isSafeInteger(remote.created_at) || remote.created_at <= 0) throw fail("Invalid provider order timestamp", 502);
+  fields = { ...fields, createdAt: new Date(remote.created_at * 1000), expiresAt: new Date(remote.created_at * 1000 + 3600000) };
+  let record;
+  await mongoose.connection.transaction(async session => {
+    const current = await ClinicSubscription.findOne({ _id: subscription._id, paymentOrderLock: token }).session(session);
+    record = await SubscriptionPayment.findOne({ razorpayOrderId: remote.id }).session(session);
+    if (record) validateOrderIdentity(remote, record);
+    else {
+      // An operator may have retired a very slow external request. Preserve its
+      // returned order, but do not offer that old request as an active checkout.
+      if (!current) {
+        const archived = await SubscriptionCheckoutArchive.exists({ receipt: remote.receipt }).session(session);
+        if (!archived) throw fail("Checkout lock changed; reconcile the returned order");
+      }
+      [record] = await SubscriptionPayment.create([{ ...fields, status: current ? "created" : "superseded", ...(current ? {} : { supersededAt: new Date() }) }], { session });
+    }
+    if (current) {
+      Object.assign(current, clearedCheckoutLock);
+      await current.save({ session });
+    }
+  });
+  if (record.status === "superseded") throw fail("Checkout was retired during order creation; refresh payment status");
+  return record;
+};
+
 export const createSubscriptionPaymentOrder = async ({
   clinicId,
   userId,
@@ -384,7 +434,7 @@ export const createSubscriptionPaymentOrder = async ({
       plan: "basic",
       paymentOrderLock: null,
     },
-    { $set: { paymentOrderLock: token, paymentOrderLockedAt: new Date() } },
+    { $set: { paymentOrderLock: token, paymentOrderLockedAt: new Date(), paymentOrderDraft: null } },
     { returnDocument: 'after' }
   );
 
@@ -408,11 +458,17 @@ export const createSubscriptionPaymentOrder = async ({
 
     const razorpay = getRazorpay();
 
+    if (await SubscriptionPayment.exists({ clinicId, subscriptionId: subscription._id, $or: [{ status: { $in: ["paid", "review_required"] } }, { financialReviewRequired: true }] })) {
+      throw fail("A previous payment needs reconciliation or support review");
+    }
+
     const records = await SubscriptionPayment.find({
       clinicId,
       subscriptionId: subscription._id,
-      status: "created",
+      status: { $in: ["created", "abandoned", "superseded"] },
     }).sort({ createdAt: -1 });
+
+    let reusable = null;
 
     for (const record of records) {
       const remote = await razorpay.orders.fetch(
@@ -420,14 +476,6 @@ export const createSubscriptionPaymentOrder = async ({
       );
 
       validateOrderIdentity(remote, record);
-
-      if (
-        record.plan !== subscription.plan ||
-        record.billingCycle !== subscription.billingCycle ||
-        record.amount !== amount
-      ) {
-        throw fail("Unresolved payment order mismatch");
-      }
 
       const state = await classifyRazorpayOrder(
         razorpay,
@@ -441,10 +489,14 @@ export const createSubscriptionPaymentOrder = async ({
       if (state === "pending") {
         throw fail("Previous payment is still being confirmed.");
       }
+      if (record.status === "created") {
+        if (record.purpose !== "registration" || record.plan !== subscription.plan || record.billingCycle !== subscription.billingCycle || record.amount !== amount) throw fail("Unresolved payment order mismatch");
+        reusable ??= record;
+      }
     }
 
-    if (records.length) {
-      const record = records[0];
+    if (reusable) {
+      const record = reusable;
 
       return {
         orderId: record.razorpayOrderId,
@@ -469,10 +521,7 @@ export const createSubscriptionPaymentOrder = async ({
     const order = await createRemoteOrder(razorpay, {
       amount,
       currency: "INR",
-      receipt: `sub_${subscription._id}_${Date.now()}`.slice(
-        0,
-        40
-      ),
+      receipt: `sub_${crypto.randomUUID()}`,
       notes: {
         clinicId: String(clinicId),
         subscriptionId: String(subscription._id),
@@ -490,7 +539,7 @@ export const createSubscriptionPaymentOrder = async ({
       throw fail("Unexpected Razorpay order response", 502);
     }
 
-    await SubscriptionPayment.create({
+    await persistCreatedOrder({
       clinicId,
       subscriptionId: subscription._id,
       purpose :"registration",
@@ -501,7 +550,7 @@ export const createSubscriptionPaymentOrder = async ({
       razorpayOrderId: order.id,
       status: "created",
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-    });
+    }, order, subscription, token);
 
     releaseLock = true;
 
@@ -548,7 +597,7 @@ export const createPlanChangeOrder = async ({
       paymentOrderLock: null,
     },
     {
-      $set: { paymentOrderLock: token, paymentOrderLockedAt: new Date() },
+      $set: { paymentOrderLock: token, paymentOrderLockedAt: new Date(), paymentOrderDraft: null },
     },
     { returnDocument: 'after' }
   );
@@ -678,8 +727,9 @@ export const createPlanChangeOrder = async ({
         record.purpose === purpose &&
         record.plan === toPlan &&
         record.billingCycle === billingCycle &&
-        Number.isSafeInteger(record.amount) && record.amount > 0 &&
+        canReuseQuote(record, amount) &&
         record.fromPlan === subscription.plan &&
+        (record.fromBillingCycle || record.billingCycle) === subscription.billingCycle &&
         samePeriod;
 
       if (!sameOrder) {
@@ -724,8 +774,7 @@ export const createPlanChangeOrder = async ({
     const order = await createRemoteOrder(razorpay, {
       amount,
       currency: "INR",
-      receipt: `plan_${subscription._id}_${Date.now()}`
-        .slice(0, 40),
+      receipt: `chg_${crypto.randomUUID()}`,
       notes: {
         clinicId: String(clinicId),
         subscriptionId: String(subscription._id),
@@ -743,7 +792,7 @@ export const createPlanChangeOrder = async ({
       throw fail("Unexpected Razorpay order response", 502);
     }
 
-    await SubscriptionPayment.create({
+    await persistCreatedOrder({
       clinicId,
       subscriptionId: subscription._id,
       purpose,
@@ -758,7 +807,7 @@ export const createPlanChangeOrder = async ({
       razorpayOrderId: order.id,
       status: "created",
       expiresAt: new Date(Date.now() + 3600000),
-    });
+    }, order, subscription, token);
 
     releaseLock = true;
 
@@ -777,7 +826,7 @@ export const createPlanChangeOrder = async ({
           paymentOrderLock: token,
         },
         {
-          $set: { paymentOrderLock: null },
+          $set: { ...clearedCheckoutLock },
         }
       );
     }
@@ -924,7 +973,7 @@ export const processSubscriptionWebhook = async ({
   if (!record) {
     const remote = await getRazorpay().orders.fetch(razorpayOrderId);
     if (!remote.notes?.subscriptionId || !remote.notes?.clinicId) return { ignored: true };
-    await recoverCheckout(remote.notes.clinicId, remote);
+    if (!await restoreArchivedCheckout(remote)) await recoverCheckout(remote.notes.clinicId, remote);
     const recovered = await SubscriptionPayment.findOne({ razorpayOrderId });
     if (!recovered) throw fail("Subscription order requires reconciliation", 503);
     return verifyCapturedPayment({ record: recovered, razorpayPaymentId, razorpay: getRazorpay() });
@@ -955,9 +1004,8 @@ export const recoverCheckout = async (clinicId, knownOrder = null) => {
     }, {$set:{paymentOrderLock:null, paymentOrderLockedAt:null}});
     return result.modifiedCount === 1;
   }
-  const response = knownOrder ? { items: [knownOrder] } :
-    await getRazorpay().orders.all({ receipt: draft.receipt, count: 2 });
-  const orders = response.items || [];
+  const orders = knownOrder ? [knownOrder] :
+    await findOrdersByReceipt(getRazorpay(), draft.receipt);
   if (orders.length !== 1 || orders[0].receipt !== draft.receipt) {
     throw fail("Checkout outcome is uncertain. Retry verification or contact support.", 503);
   }
@@ -978,6 +1026,10 @@ export const recoverCheckout = async (clinicId, knownOrder = null) => {
       ...fields, createdAt: new Date(remote.created_at * 1000),
       expiresAt: new Date(remote.created_at * 1000 + 3600000),
     }], { session });
+    await SubscriptionCheckoutArchive.updateOne({ receipt: draft.receipt }, { $setOnInsert: {
+      clinicId: current.clinicId, subscriptionId: current._id, receipt: draft.receipt,
+      draft, operator: "automatic-recovery", reason: "Recovered exact provider order from durable checkout draft",
+    } }, { session, upsert: true, runValidators: true });
     current.paymentOrderLock = null;
     current.paymentOrderLockedAt = null;
     current.paymentOrderDraft = null;
@@ -988,20 +1040,66 @@ export const recoverCheckout = async (clinicId, knownOrder = null) => {
 
 // Record financial exceptions for operator review. Refund/access decisions remain
 // explicit business policy; never revoke a newer subscription for an old payment.
-export const processSubscriptionFinancialEvent = async ({paymentId, event}) => {
+export const processSubscriptionFinancialEvent = async ({paymentId, event, entityId}) => {
   if (typeof paymentId !== "string" || !paymentId.startsWith("pay_")) throw fail("Invalid financial event", 400);
   const remote = await getRazorpay().payments.fetch(paymentId);
-  const record = await SubscriptionPayment.findOne({razorpayOrderId: remote.order_id});
+  let record = await SubscriptionPayment.findOne({razorpayOrderId: remote.order_id});
   if (!record) {
     const order = await getRazorpay().orders.fetch(remote.order_id);
-    if (order.notes?.subscriptionId) throw fail("Financial event needs order reconciliation", 503);
-    return {ignored: true};
+    if (!order.notes?.subscriptionId) return {ignored: true};
+    if (!await restoreArchivedCheckout(order)) await recoverCheckout(order.notes.clinicId, order);
+    record = await SubscriptionPayment.findOne({razorpayOrderId: remote.order_id});
+    if (!record) throw fail("Financial event needs order reconciliation", 503);
   }
   if (remote.amount !== record.amount || remote.currency !== record.currency ||
       (record.razorpayPaymentId && record.razorpayPaymentId !== paymentId)) throw fail("Financial event identity mismatch");
-  await SubscriptionPayment.updateOne({_id:record._id}, {$set:{
-    financialReviewRequired:true, reviewRequiredAt:new Date(),
+  if (typeof entityId !== "string" || !entityId) throw fail("Financial entity ID missing", 400);
+  const dispute = event.startsWith("payment.dispute.") ? await getRazorpay().disputes.fetch(entityId) : null;
+  const refund = dispute ? null : await getRazorpay().refunds.fetch(entityId);
+  if ((dispute || refund).payment_id !== paymentId || (refund && refund.status !== "processed")) throw fail("Financial entity identity mismatch");
+  // Fetch live dispute state: an old delivered event must not reopen a resolved decision.
+  const key = `${entityId}:${dispute ? dispute.status : "processed"}`;
+  if (refund && record.resolvedRefundAmount === remote.amount_refunded && !record.financialReviewRequired && record.supportHistory?.length) {
+    await SubscriptionPayment.updateOne({_id:record._id, financialReviewRequired:false, resolvedRefundAmount:remote.amount_refunded}, {$addToSet:{financialEventKeys:key}});
+    return {requiresReview:false};
+  }
+  const changed = await SubscriptionPayment.updateOne({_id:record._id, financialEventKeys:{$ne:key}}, {$set:{
+    razorpayPaymentId:paymentId, financialReviewRequired:true, reviewRequiredAt:new Date(),
     reviewReason:`Financial event requires operator decision: ${event}`,
-  }});
-  return {requiresReview:true};
+  }, $addToSet:{financialEventKeys:key}});
+  return {requiresReview:changed.modifiedCount === 1 || record.financialReviewRequired};
 };
+
+export async function restoreArchivedCheckout(remote) {
+  const archive = await SubscriptionCheckoutArchive.findOne({ receipt: remote.receipt });
+  if (!archive) return false;
+  const fields = { ...archive.draft, razorpayOrderId: remote.id, currency: "INR", status: "superseded", supersededAt: archive.createdAt };
+  delete fields.receipt;
+  validateOrderIdentity(remote, fields);
+  try {
+    await SubscriptionPayment.create(fields);
+  } catch (error) {
+    if (error.code !== 11000) throw error;
+    const existing = await SubscriptionPayment.findOne({ razorpayOrderId: remote.id });
+    if (!existing) throw error;
+    validateOrderIdentity(remote, existing);
+  }
+  return true;
+}
+
+// Operator-only service, intentionally absent from public HTTP routes.
+export async function activateReviewedPayment({ record, operator, reason }) {
+  if (record.status !== "review_required" || record.financialReviewRequired) throw fail("Payment is not eligible for activation review");
+  return verifyCapturedPayment({ record, razorpayPaymentId: record.razorpayPaymentId, razorpay: getRazorpay(), supportDecision: { operator, reason } });
+}
+
+export async function verifyOperatorPayment({ orderId, paymentId, operator, reason }) {
+  if (!/^order_[A-Za-z0-9]+$/.test(orderId || "") || !/^pay_[A-Za-z0-9]+$/.test(paymentId || "") || !operator?.trim() || !reason?.trim()) throw fail("Explicit order, payment, operator and support reason are required", 400);
+  const record = await SubscriptionPayment.findOne({ razorpayOrderId: orderId });
+  if (!record) throw fail("Recover the missing local order first", 404);
+  const result = await verifyCapturedPayment({ record, razorpayPaymentId: paymentId, razorpay: getRazorpay() });
+  await SubscriptionPayment.updateOne({ _id: record._id }, { $push: { supportHistory: {
+    action: "verify", operator: operator.trim(), reason: reason.trim(), at: new Date(), entitlement: result.requiresReview ? "review_required" : "unchanged",
+  } } });
+  return result;
+}

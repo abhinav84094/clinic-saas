@@ -48,7 +48,8 @@ export const handleRazorpayWebhook = async (req, res, next) => {
 
     if (["refund.processed", "payment.dispute.created", "payment.dispute.lost", "payment.dispute.won", "payment.dispute.closed", "payment.dispute.under_review", "payment.dispute.action_required"].includes(event.event)) {
       const paymentId = event.payload?.refund?.entity?.payment_id || event.payload?.dispute?.entity?.payment_id;
-      await processSubscriptionFinancialEvent({paymentId, event:event.event});
+      const entityId = event.payload?.refund?.entity?.id || event.payload?.dispute?.entity?.id;
+      await processSubscriptionFinancialEvent({paymentId, event:event.event, entityId});
       return res.status(200).json({received:true});
     }
     // Only process captured subscription payments.

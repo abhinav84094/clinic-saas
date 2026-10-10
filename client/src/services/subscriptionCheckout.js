@@ -1,7 +1,7 @@
 import api from "./api";
 
 let scriptPromise;
-export async function openSubscriptionCheckout(base, purpose, options) {
+export async function openSubscriptionCheckout(base, purpose, options, { onOrder } = {}) {
   if (!window.Razorpay) {
     scriptPromise ??= new Promise((resolve, reject) => {
       const script = document.createElement("script");
@@ -17,13 +17,16 @@ export async function openSubscriptionCheckout(base, purpose, options) {
   if (!order?.orderId || !order?.keyId || !Number.isSafeInteger(order.amount) || order.amount <= 0 || order.currency !== "INR") {
     throw new Error("Invalid checkout order");
   }
+  onOrder?.(order);
   return new Promise((resolve, reject) => {
     let failure;
+    let verifying = false;
     const checkout = new window.Razorpay({
       key: order.keyId, order_id: order.orderId, amount: order.amount, currency: order.currency,
-      name: "Clinic Subscription", description: "Basic plan renewal",
-      modal: { ondismiss: () => reject(failure || new Error("Checkout closed. You can resume the same order.")) },
+      name: "Clinic Subscription", description: purpose === "renewal" ? "Basic plan renewal" : "Subscription upgrade",
+      modal: { ondismiss: () => { if (!verifying) reject(failure || new Error("Checkout closed. Check your existing payment before retrying.")); } },
       handler: async payment => {
+        verifying = true;
         try {
           const result = await api.post(`${base}/subscription/verify-payment`, payment);
           resolve(result.data);
