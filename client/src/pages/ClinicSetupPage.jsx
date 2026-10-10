@@ -1,3 +1,6 @@
+import { fieldErrorsFrom } from "../utils/formErrors";
+import InlineError from "../components/shared/InlineError";
+import ClinicSetupProgress from "../components/shared/ClinicSetupProgress";
 
 import { useEffect, useState } from "react";
 import {
@@ -6,7 +9,6 @@ import {
   useParams,
 } from "react-router-dom";
 import {
-  ArrowLeft,
   ArrowRight,
   Building2,
   LoaderCircle,
@@ -39,6 +41,7 @@ export default function ClinicSetupPage() {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(editing);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
   const [status, setStatus] = useState("draft");
 
@@ -99,6 +102,7 @@ export default function ClinicSetupPage() {
       [name]: value,
     }));
 
+    setFieldErrors(previous => ({ ...previous, [name]: "" }));
     setError("");
   }
 
@@ -126,6 +130,7 @@ export default function ClinicSetupPage() {
 
     if (saving) return;
 
+    setFieldErrors({});
     setSaving(true);
     setError("");
 
@@ -156,19 +161,14 @@ export default function ClinicSetupPage() {
         { replace: true }
       );
     } catch (err) {
-      const validationErrors =
-        err.response?.data?.errors
-          ?.map(
-            (item) =>
-              `${item.field}: ${item.message}`
-          )
-          .join("; ");
-
-      setError(
-        validationErrors ||
-          err.response?.data?.message ||
-          "Unable to save clinic details."
-      );
+      const errors = fieldErrorsFrom(err, Object.keys(initialForm));
+      setFieldErrors(errors);
+      const issues = err.response?.data?.errors || [];
+      const allMapped = issues.length > 0 && issues.every(issue => {
+        const path = issue.field || issue.path;
+        return errors[(Array.isArray(path) ? path : String(path || "").split(".")).at(-1)];
+      });
+      setError(allMapped ? "" : err.response?.data?.message || "Unable to save clinic details.");
     } finally {
       setSaving(false);
     }
@@ -199,14 +199,8 @@ export default function ClinicSetupPage() {
 
   return (
     <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-2xl">
-        <Link
-          to="/my-clinics"
-          className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-300"
-        >
-          <ArrowLeft size={17} />
-          My Clinics
-        </Link>
+      <div className="mx-auto max-w-5xl">
+        {status === "draft" && <ClinicSetupProgress step={1} clinicId={clinicId} />}
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-8">
           <div className="mb-6">
@@ -214,14 +208,6 @@ export default function ClinicSetupPage() {
               <span className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3 text-blue-600 dark:text-blue-300">
                 <Building2 size={23} />
               </span>
-
-              <span className="text-xs font-semibold text-blue-600 dark:text-blue-300">
-                STEP 1 OF 6
-              </span>
-            </div>
-
-            <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div className="h-full w-1/6 rounded-full bg-blue-600" />
             </div>
 
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
@@ -254,13 +240,17 @@ export default function ClinicSetupPage() {
                   key={name}
                   className="block min-w-0 text-sm font-medium text-slate-700 dark:text-slate-200"
                 >
-                  {label}
+                  {label}{required && <span className="text-red-500" aria-hidden="true"> *</span>}{!required && <span className="font-normal text-slate-400"> (optional)</span>}
 
                   <input
+                    id={`clinic-${name}`}
+                    aria-invalid={Boolean(fieldErrors[name])}
+                    aria-describedby={fieldErrors[name] ? `clinic-${name}-error` : undefined}
                     name={name}
                     type={type}
                     value={form[name]}
                     onChange={handleChange}
+                    autoComplete={({ name: "organization", email: "email", phone: "tel", line1: "street-address", city: "address-level2", state: "address-level1", postalCode: "postal-code" })[name] || "off"}
                     required={required}
                     disabled={
                       saving ||
@@ -271,20 +261,21 @@ export default function ClinicSetupPage() {
                       name === "slug" ? 80 : 200
                     }
                     placeholder={
-                      name === "slug"
-                        ? "city-care-clinic"
-                        : ""
+                      ({ name: "City Care Clinic", slug: "city-care-clinic", phone: "Clinic contact number", email: "hello@yourclinic.com", line1: "Building, street and area", city: "City", state: "State", postalCode: "Postal code" })[name]
                     }
-                    className={inputClass}
+                    className={`${inputClass} ${fieldErrors[name] ? "border-red-400 focus:border-red-500" : ""}`}
                   />
+                  <InlineError id={`clinic-${name}-error`} message={fieldErrors[name]} />
+                  {name === "slug" && <span className="mt-2 block text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">Choose a unique name using lowercase letters, numbers and hyphens. Your website address cannot be changed after creation.</span>}
                 </label>
               )
             )}
 
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 sm:col-span-2">
-              Clinic Description
+              Clinic Description <span className="font-normal text-slate-400">(optional)</span>
 
               <textarea
+                aria-invalid={Boolean(fieldErrors.description)}
                 name="description"
                 value={form.description}
                 onChange={handleChange}
@@ -293,6 +284,7 @@ export default function ClinicSetupPage() {
                 disabled={saving || status !== "draft"}
                 className={`${inputClass} resize-y`}
               />
+              <InlineError message={fieldErrors.description} />
             </label>
 
             {!editing && (
@@ -315,6 +307,7 @@ export default function ClinicSetupPage() {
                   </option>
                 </select>
 
+                <InlineError message={fieldErrors.billingCycle} />
                 <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
                   No payment is collected at
                   this step.
@@ -322,14 +315,7 @@ export default function ClinicSetupPage() {
               </label>
             )}
 
-            {error && (
-              <p
-                role="alert"
-                className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300 sm:col-span-2"
-              >
-                {error}
-              </p>
-            )}
+            <InlineError message={error} className="sm:col-span-2" />
 
             {status === "draft" && (
               <button
@@ -347,7 +333,7 @@ export default function ClinicSetupPage() {
                   </>
                 ) : (
                   <>
-                    Save & Continue
+                    Save & Continue to Doctors
                     <ArrowRight size={18} />
                   </>
                 )}

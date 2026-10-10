@@ -1,3 +1,5 @@
+import InlineError from "../components/shared/InlineError";
+import ClinicSetupProgress from "../components/shared/ClinicSetupProgress";
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -34,6 +36,9 @@ const requirementLabels = {
   active_doctor: "At least one active doctor is required",
   active_subscription: "An active subscription is required",
 };
+
+const requirementStep = requirement => requirement === "active_doctor" ? "doctors/setup"
+  : requirement === "active_subscription" ? "subscription/setup" : "setup";
 
 const formatDate = (value) => {
   if (!value) return "Not available";
@@ -244,8 +249,9 @@ export default function ReviewPublishPage() {
     success || clinic.status === "active";
 
   return (
-    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-12">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-5xl">
+        {clinic.status === "draft" && <ClinicSetupProgress step={6} clinicId={clinicId} />}
         <Link
           to={`${base}/subscription/setup`}
           className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
@@ -255,15 +261,7 @@ export default function ReviewPublishPage() {
         </Link>
 
         <div className="mt-7">
-          <p className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300">
-            Step 6 of 6
-          </p>
-
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-            <div className="h-full w-full rounded-full bg-blue-600" />
-          </div>
-
-          <h1 className="mt-6 text-3xl font-extrabold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             Review & Publish
           </h1>
 
@@ -273,14 +271,7 @@ export default function ReviewPublishPage() {
           </p>
         </div>
 
-        {error && (
-          <div
-            role="alert"
-            className="mt-6 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
-          >
-            {error}
-          </div>
-        )}
+
 
         {published && (
           <div
@@ -451,8 +442,8 @@ export default function ReviewPublishPage() {
               }
             >
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Your clinic will use the predefined
-                responsive website template.
+                Your selected website design will display the clinic details,
+                doctors and services shown in this review.
               </p>
 
               {publicUrl && (
@@ -541,13 +532,15 @@ export default function ReviewPublishPage() {
                         className="mt-0.5 shrink-0"
                       />
 
-                      {requirementLabels[requirement] ||
-                        requirement}
+                      <Link to={`${base}/${requirementStep(requirement)}`} className="underline decoration-amber-300 underline-offset-4 hover:text-amber-950 dark:hover:text-amber-100">
+                        {requirementLabels[requirement] || requirement} — Fix this
+                      </Link>
                     </li>
                   ))}
                 </ul>
               )}
 
+              <InlineError message={error} />
               <button
                 type="button"
                 onClick={loadData}
@@ -580,7 +573,7 @@ export default function ReviewPublishPage() {
               {!published && !canPublish && (
                 <p className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
                   Publishing becomes available once
-                  the backend confirms all requirements.
+                  you complete the missing items above.
                 </p>
               )}
             </section>

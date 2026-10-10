@@ -1,3 +1,5 @@
+import InlineError from "../components/shared/InlineError";
+import ClinicSetupProgress from "../components/shared/ClinicSetupProgress";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -81,6 +83,7 @@ export default function SubscriptionSetupPage() {
     useState(false);
 
   const [orderId, setOrderId] = useState("");
+  const [errorArea, setErrorArea] = useState("payment");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -297,6 +300,7 @@ export default function SubscriptionSetupPage() {
       return;
     }
 
+    setErrorArea("cycle");
     setSaving(true);
     setError("");
     setNotice("");
@@ -347,6 +351,7 @@ export default function SubscriptionSetupPage() {
 
     paymentLock.current = true;
 
+    setErrorArea("payment");
     setPaying(true);
     setError("");
     setNotice("");
@@ -559,8 +564,9 @@ export default function SubscriptionSetupPage() {
   const yearly = subscription.billingCycle === "yearly";
 
   return (
-    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-12">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-5xl">
+        <ClinicSetupProgress step={5} clinicId={clinicId} />
         <Link
           to={`${base}/website/setup`}
           className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
@@ -570,15 +576,7 @@ export default function SubscriptionSetupPage() {
         </Link>
 
         <div className="mt-7">
-          <p className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300">
-            Step 5 of 6
-          </p>
-
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-            <div className="h-full w-5/6 rounded-full bg-blue-600" />
-          </div>
-
-          <h1 className="mt-6 text-3xl font-extrabold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             Choose Your Billing Cycle
           </h1>
 
@@ -588,14 +586,7 @@ export default function SubscriptionSetupPage() {
           </p>
         </div>
 
-        {error && (
-          <div
-            role="alert"
-            className="mt-6 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
-          >
-            {error}
-          </div>
-        )}
+
 
         {notice && (
           <div
@@ -664,6 +655,7 @@ export default function SubscriptionSetupPage() {
               })}
             </div>
 
+            <InlineError message={errorArea === "cycle" ? error : ""} />
             {saving && (
               <p className="mt-4 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300">
                 <LoaderCircle
@@ -737,6 +729,7 @@ export default function SubscriptionSetupPage() {
               </p>
             </div>
 
+            <InlineError message={errorArea !== "cycle" ? error : ""} />
             {isActive ? (
               <button
                 type="button"

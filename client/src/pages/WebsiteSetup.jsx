@@ -1,3 +1,5 @@
+import InlineError from "../components/shared/InlineError";
+import ClinicSetupProgress from "../components/shared/ClinicSetupProgress";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, LoaderCircle, Monitor, Smartphone } from "lucide-react";
@@ -21,6 +23,7 @@ export default function WebsiteSetupPage() {
   const [savedTemplate, setSavedTemplate] = useState("A");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [errorArea, setErrorArea] = useState("template");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -61,8 +64,10 @@ export default function WebsiteSetupPage() {
     return () => { alive = false; };
   }, [base]);
 
-  async function saveTemplate() {
-    if (!clinic || savingTemplate || selectedTemplate === savedTemplate) return;
+  async function saveTemplate({ fromContinue = false } = {}) {
+    if (!clinic || savingTemplate) return false;
+    if (selectedTemplate === savedTemplate) return true;
+    setErrorArea(fromContinue ? "continue" : "template");
     setSavingTemplate(true);
     setError("");
     setSuccess("");
@@ -75,11 +80,17 @@ export default function WebsiteSetupPage() {
         website: { ...current.website, templateId: templateToSave },
       } : current);
       setSuccess("Website template saved successfully.");
+      return true;
     } catch (err) {
       setError(err.response?.data?.message || "Unable to save website template.");
+      return false;
     } finally {
       setSavingTemplate(false);
     }
+  }
+
+  async function continueToSubscription() {
+    if (await saveTemplate({ fromContinue: true })) navigate(`${base}/subscription/setup`);
   }
 
   const visibleServices = services
@@ -117,8 +128,9 @@ export default function WebsiteSetupPage() {
   const hasUnsavedSelection = selectedTemplate !== savedTemplate;
 
   return (
-    <main className="min-h-dvh bg-slate-100 dark:bg-slate-800 px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-5xl space-y-6">
+        {isDraft && <ClinicSetupProgress step={4} clinicId={clinicId} />}
         <Link
           to={isDraft ? `${base}/services/setup` : `/dashboard/clinic/${clinicId}`}
           className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
@@ -129,9 +141,6 @@ export default function WebsiteSetupPage() {
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            {isDraft && (
-              <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-300">Step 4 of 6</p>
-            )}
             <h1 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Your Clinic Website</h1>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               Choose a template and preview your clinic's information in that design.
@@ -151,7 +160,7 @@ export default function WebsiteSetupPage() {
           </div>
         </div>
 
-        {error && <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300">{error}</p>}
+        <InlineError message={!clinic ? error : ""} />
 
         {clinic && (
           <>
@@ -166,7 +175,7 @@ export default function WebsiteSetupPage() {
                   return (
                     <button key={template.id} type="button" aria-pressed={selected}
                       disabled={!canEdit || savingTemplate}
-                      onClick={() => { setSelectedTemplate(template.id); setSuccess(""); }}
+                      onClick={() => { setSelectedTemplate(template.id); setSuccess(""); setError(""); }}
                       className={`rounded-xl border-2 p-5 text-left transition disabled:opacity-60 ${selected ? "border-blue-600 bg-blue-50 dark:bg-blue-950/40" : "border-slate-200 dark:border-slate-700 hover:border-blue-300"}`}>
                       <div className="mb-4 flex h-28 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-3xl font-bold text-blue-600 dark:text-blue-300">
                         {template.id}
@@ -183,6 +192,7 @@ export default function WebsiteSetupPage() {
               {hasUnsavedSelection && (
                 <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">Previewing an unsaved template selection.</p>
               )}
+              <InlineError message={errorArea === "template" ? error : ""} />
               <button type="button" onClick={saveTemplate}
                 disabled={!canEdit || savingTemplate || !hasUnsavedSelection}
                 className="mt-5 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50">
@@ -205,13 +215,15 @@ export default function WebsiteSetupPage() {
             {isDraft && (
               <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Your clinic information is already saved. Continue once your template selection is saved.
+                  Happy with your preview? Continue to choose your subscription.
+                  Your selected template will be saved before you move on.
                 </p>
+                <InlineError message={errorArea === "continue" ? error : ""} />
                 <button type="button"
-                  disabled={savingTemplate || hasUnsavedSelection}
-                  onClick={() => navigate(`${base}/subscription/setup`)}
+                  disabled={savingTemplate}
+                  onClick={continueToSubscription}
                   className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
-                  Continue to Subscription <ArrowRight size={18} />
+                  {savingTemplate ? <><LoaderCircle size={18} className="animate-spin" /> Saving...</> : <>{hasUnsavedSelection ? "Save & Continue to Subscription" : "Continue to Subscription"} <ArrowRight size={18} /></>}
                 </button>
               </div>
             )}

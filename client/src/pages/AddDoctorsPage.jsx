@@ -1,6 +1,9 @@
+import { fieldErrorsFrom } from "../utils/formErrors";
+import InlineError from "../components/shared/InlineError";
+import ClinicSetupProgress from "../components/shared/ClinicSetupProgress";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -41,6 +44,8 @@ function getError(error) {
 
 export default function AddDoctorsPage() {
   const { clinicId } = useParams();
+  const location = useLocation();
+  const onboarding = location.pathname.startsWith("/clinics/");
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
@@ -56,6 +61,8 @@ export default function AddDoctorsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busyDoctorId, setBusyDoctorId] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [errorArea, setErrorArea] = useState("page");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -105,7 +112,15 @@ export default function AddDoctorsPage() {
     return () => URL.revokeObjectURL(url);
   }, [photoFile]);
 
+  function updateField(name, value) {
+    setForm(previous => ({ ...previous, [name]: value }));
+    setFieldErrors(previous => ({ ...previous, [name]: "" }));
+    setError("");
+  }
+
   function resetForm() {
+    setFieldErrors({});
+    setError("");
     setEditingId(null);
     setForm(emptyForm);
     setPhotoFile(null);
@@ -121,6 +136,7 @@ export default function AddDoctorsPage() {
   }
 
   function openEdit(doctor) {
+    setFieldErrors({});
     setEditingId(idOf(doctor));
     setForm({
       name: doctor.name || "",
@@ -140,6 +156,7 @@ export default function AddDoctorsPage() {
   }
 
   function selectPhoto(event) {
+    setErrorArea("photo");
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -190,6 +207,8 @@ export default function AddDoctorsPage() {
 
     if (saving) return;
 
+    setFieldErrors({});
+    setErrorArea("form");
     setSaving(true);
     setError("");
     setSuccess("");
@@ -230,6 +249,7 @@ export default function AddDoctorsPage() {
         } catch (photoError) {
           await load();
           setEditingId(savedDoctorId);
+          setErrorArea("photo");
           setError(
             "Doctor details saved, but photo upload failed: " +
               getError(photoError)
@@ -242,13 +262,16 @@ export default function AddDoctorsPage() {
       resetForm();
       setSuccess("Doctor profile saved successfully.");
     } catch (err) {
-      setError(getError(err));
+      const fields = fieldErrorsFrom(err, Object.keys(emptyForm));
+      setFieldErrors(fields);
+      setError(Object.keys(fields).length ? "Please correct the highlighted fields." : getError(err));
     } finally {
       setSaving(false);
     }
   }
 
   async function toggleStatus(doctor) {
+    setErrorArea(idOf(doctor));
     const doctorId = idOf(doctor);
 
     setBusyDoctorId(doctorId);
@@ -289,8 +312,9 @@ export default function AddDoctorsPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-8">
+    <main className={onboarding ? "min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10" : "min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-8"}>
       <div className="mx-auto max-w-5xl space-y-6">
+        {onboarding && clinic?.status === "draft" && <ClinicSetupProgress step={2} clinicId={clinicId} />}
         <Link
           to={
             clinic?.status === "draft"
@@ -308,7 +332,7 @@ export default function AddDoctorsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Manage Doctors
+              {onboarding && clinic?.status === "draft" ? "Add Your Doctors" : "Manage Doctors"}
             </h1>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               {clinic?.name} · {activeCount} active doctors
@@ -327,14 +351,7 @@ export default function AddDoctorsPage() {
           )}
         </div>
 
-        {error && (
-          <p
-            role="alert"
-            className="rounded-xl bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
-          >
-            {error}
-          </p>
-        )}
+        <InlineError message={errorArea === "page" ? error : ""} />
 
         {success && (
           <p
@@ -422,6 +439,7 @@ export default function AddDoctorsPage() {
                 </div>
               </div>
 
+              <InlineError message={errorArea === "photo" ? error : ""} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-semibold">
                   Doctor Name *
@@ -429,47 +447,47 @@ export default function AddDoctorsPage() {
                     required
                     minLength={2}
                     maxLength={120}
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    aria-describedby={fieldErrors.name ? "doctor-name-error" : undefined}
                     value={form.name}
                     onChange={(event) =>
-                      setForm({
-                        ...form,
-                        name: event.target.value,
-                      })
+                      updateField("name", event.target.value)
                     }
                     placeholder="Dr. Rahul Sharma"
-                    className={inputClass}
+                    className={`${inputClass} ${fieldErrors.name ? "border-red-400 focus:border-red-500" : ""}`}
                   />
+                  <InlineError id="doctor-name-error" message={fieldErrors.name} />
                 </label>
 
                 <label className="text-sm font-semibold">
                   Specialization
                   <input
                     maxLength={250}
+                    aria-invalid={Boolean(fieldErrors.specialization)}
+                    aria-describedby={fieldErrors.specialization ? "doctor-specialization-error" : undefined}
                     value={form.specialization}
                     onChange={(event) =>
-                      setForm({
-                        ...form,
-                        specialization: event.target.value,
-                      })
+                      updateField("specialization", event.target.value)
                     }
                     placeholder="Cardiologist"
-                    className={inputClass}
+                    className={`${inputClass} ${fieldErrors.specialization ? "border-red-400 focus:border-red-500" : ""}`}
                   />
+                  <InlineError id="doctor-specialization-error" message={fieldErrors.specialization} />
                 </label>
 
                 <label className="text-sm font-semibold">
                   Qualifications
                   <input
+                    aria-invalid={Boolean(fieldErrors.qualifications)}
+                    aria-describedby={fieldErrors.qualifications ? "doctor-qualifications-error" : undefined}
                     value={form.qualifications}
                     onChange={(event) =>
-                      setForm({
-                        ...form,
-                        qualifications: event.target.value,
-                      })
+                      updateField("qualifications", event.target.value)
                     }
                     placeholder="MBBS, MD"
-                    className={inputClass}
+                    className={`${inputClass} ${fieldErrors.qualifications ? "border-red-400 focus:border-red-500" : ""}`}
                   />
+                  <InlineError id="doctor-qualifications-error" message={fieldErrors.qualifications} />
                   <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
                     Separate qualifications with commas.
                   </span>
@@ -482,15 +500,15 @@ export default function AddDoctorsPage() {
                     min={0}
                     max={70}
                     step={1}
+                    aria-invalid={Boolean(fieldErrors.experienceYears)}
+                    aria-describedby={fieldErrors.experienceYears ? "doctor-experienceYears-error" : undefined}
                     value={form.experienceYears}
                     onChange={(event) =>
-                      setForm({
-                        ...form,
-                        experienceYears: event.target.value,
-                      })
+                      updateField("experienceYears", event.target.value)
                     }
-                    className={inputClass}
+                    className={`${inputClass} ${fieldErrors.experienceYears ? "border-red-400 focus:border-red-500" : ""}`}
                   />
+                  <InlineError id="doctor-experienceYears-error" message={fieldErrors.experienceYears} />
                 </label>
 
                 <label className="text-sm font-semibold sm:col-span-2">
@@ -498,19 +516,20 @@ export default function AddDoctorsPage() {
                   <textarea
                     rows={4}
                     maxLength={10000}
+                    aria-invalid={Boolean(fieldErrors.bio)}
+                    aria-describedby={fieldErrors.bio ? "doctor-bio-error" : undefined}
                     value={form.bio}
                     onChange={(event) =>
-                      setForm({
-                        ...form,
-                        bio: event.target.value,
-                      })
+                      updateField("bio", event.target.value)
                     }
                     placeholder="Professional introduction"
-                    className={inputClass}
+                    className={`${inputClass} ${fieldErrors.bio ? "border-red-400 focus:border-red-500" : ""}`}
                   />
+                  <InlineError id="doctor-bio-error" message={fieldErrors.bio} />
                 </label>
               </div>
 
+              <InlineError message={errorArea === "form" ? error : ""} />
               <div className="flex flex-wrap justify-end gap-3">
                 <button
                   type="button"
@@ -586,6 +605,7 @@ export default function AddDoctorsPage() {
                 </p>
               )}
 
+              <InlineError message={errorArea === idOf(doctor) ? error : ""} />
               <div className="mt-5 flex gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
                 <button
                   type="button"
