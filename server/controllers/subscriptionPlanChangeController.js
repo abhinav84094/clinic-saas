@@ -14,6 +14,7 @@ export const createUpgradeOrderController = async (
       clinicId: req.params.clinicId,
       userId: req.user._id,
       toPlan: req.body?.toPlan,
+      billingCycle: req.body?.billingCycle,
     });
 
     return res.status(201).json({

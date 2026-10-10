@@ -8,9 +8,10 @@ import ClinicSubscription from "../models/ClinicSubscription.js";
 import SubscriptionPayment from "../models/SubscriptionPayment.js";
 
 import { getRazorpay } from "../config/razorpay.js";
-import { getPlanConfig } from "./subscriptionService.js";
+import { getPlanConfig, SUBSCRIPTION_PLANS } from "./subscriptionService.js";
 import {
   classifyRazorpayOrder,
+  recoverCheckout,
   validateOrderIdentity,
 } from "./subscriptionPaymentService.js";
 
@@ -43,6 +44,7 @@ const requireOwner = async (clinicId, userId) => {
 
 const formatSubscription = (subscription) => ({
   id: subscription._id,
+  plans: SUBSCRIPTION_PLANS,
   clinicId: subscription.clinicId,
   plan: subscription.plan,
   billingCycle: subscription.billingCycle,
@@ -79,7 +81,16 @@ export const getClinicSubscriptionSetup = async ({
     throw fail("Subscription not found", 404);
   }
 
-  return formatSubscription(subscription);
+  const payment = await SubscriptionPayment.findOne({
+    subscriptionId: subscription._id, status: "created",
+  }).sort({createdAt: -1}).lean();
+  return {
+    ...formatSubscription(subscription),
+    pendingPayment: payment ? {
+      orderId: payment.razorpayOrderId, plan: payment.plan,
+      billingCycle: payment.billingCycle, amount: payment.amount, currency: payment.currency,
+    } : null,
+  };
 };
 
 export const updateSubscriptionBillingCycle = async ({
@@ -109,6 +120,7 @@ export const updateSubscriptionBillingCycle = async ({
 
   const token = crypto.randomUUID();
 
+  await recoverCheckout(clinicId);
   // Same lock used by payment order creation.
   const subscription = await ClinicSubscription.findOneAndUpdate(
     {
@@ -122,7 +134,7 @@ export const updateSubscriptionBillingCycle = async ({
         paymentOrderLock: token,
       },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!subscription) {

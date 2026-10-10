@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { processSubscriptionWebhook } from "../services/subscriptionPaymentService.js";
+import { processSubscriptionWebhook, processSubscriptionFinancialEvent } from "../services/subscriptionPaymentService.js";
 
 export const handleRazorpayWebhook = async (req, res, next) => {
   try {
@@ -42,8 +42,15 @@ export const handleRazorpayWebhook = async (req, res, next) => {
       });
     }
 
-    const event = JSON.parse(req.body.toString("utf8"));
+    let event;
+    try { event = JSON.parse(req.body.toString("utf8")); }
+    catch { return res.status(400).json({message: "Invalid webhook JSON"}); }
 
+    if (["refund.processed", "payment.dispute.created", "payment.dispute.lost", "payment.dispute.won", "payment.dispute.closed", "payment.dispute.under_review", "payment.dispute.action_required"].includes(event.event)) {
+      const paymentId = event.payload?.refund?.entity?.payment_id || event.payload?.dispute?.entity?.payment_id;
+      await processSubscriptionFinancialEvent({paymentId, event:event.event});
+      return res.status(200).json({received:true});
+    }
     // Only process captured subscription payments.
     if (event.event !== "payment.captured") {
       return res.status(200).json({

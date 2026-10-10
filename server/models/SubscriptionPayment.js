@@ -76,6 +76,8 @@ const subscriptionPaymentSchema = new Schema(
       required: true,
     },
 
+    financialReviewRequired: { type: Boolean, default: false },
+
     reviewRequiredAt: {
       type: Date,
       default: null,
@@ -94,7 +96,6 @@ const subscriptionPaymentSchema = new Schema(
     purpose: {
       type: String,
       enum: ["registration", "upgrade", "renewal"],
-      default: "registration",
       required: true,
       immutable: true,
     },
@@ -105,6 +106,8 @@ const subscriptionPaymentSchema = new Schema(
       default: null,
       immutable: true,
     },
+    fromBillingCycle: { type: String, enum: ["monthly", "yearly"], default: null, immutable: true },
+
     sourcePeriodEnd: {
       type: Date,
       default: null,

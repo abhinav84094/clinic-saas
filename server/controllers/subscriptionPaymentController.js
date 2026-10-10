@@ -123,6 +123,7 @@ export const createUpgradeOrderController = async (
       userId: req.user._id,
       purpose: "upgrade",
       toPlan: req.body?.toPlan,
+      billingCycle: req.body?.billingCycle,
     });
 
     return res.status(201).json({

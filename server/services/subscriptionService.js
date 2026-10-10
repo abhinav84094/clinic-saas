@@ -1,26 +1,31 @@
+import "dotenv/config";
 import mongoose from "mongoose";
 import ClinicSubscription from "../models/ClinicSubscription.js";
 
-// Read prices from environment variables
-const readPrice = (key) => {
-
-
-  const price = Number(raw);
-
-  if (!Number.isSafeInteger(price)) {
-    throw new Error(`Invalid price value: ${key}`);
-  }
-
-  return price;
-};
 
 // Subscription plan configuration
+
+export const parsePlanPrice = (value, fallback, key) => {
+  const raw = value === undefined ? String(fallback) : String(value).trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(raw) || !Number.isSafeInteger(Math.round(Number(raw) * 100)) || Number(raw) <= 0) {
+    throw new Error(`Invalid ${key}: use a positive price with at most two decimal places`);
+  }
+  return Number(raw);
+};
+
+export const toPaise = (price) => {
+  const amount = Math.round(price * 100);
+  if (!Number.isFinite(price) || !Number.isSafeInteger(amount) || amount <= 0) {
+    throw new Error("Invalid payment amount");
+  }
+  return amount;
+};
 
 export const SUBSCRIPTION_PLANS = Object.freeze({
   basic: {
     prices: {
-      monthly: Number(process.env.PLAN_BASIC_MONTHLY || 49),
-      yearly: Number(process.env.PLAN_BASIC_YEARLY || 499),
+      monthly: parsePlanPrice(process.env.PLAN_BASIC_MONTHLY, 49, "PLAN_BASIC_MONTHLY"),
+      yearly: parsePlanPrice(process.env.PLAN_BASIC_YEARLY, 499, "PLAN_BASIC_YEARLY"),
     },
     limits: {
       monthly: 0,
@@ -30,8 +35,8 @@ export const SUBSCRIPTION_PLANS = Object.freeze({
 
   starter: {
     prices: {
-      monthly: Number(process.env.PLAN_STARTER_MONTHLY || 199),
-      yearly: Number(process.env.PLAN_STARTER_YEARLY || 1999),
+      monthly: parsePlanPrice(process.env.PLAN_STARTER_MONTHLY, 199, "PLAN_STARTER_MONTHLY"),
+      yearly: parsePlanPrice(process.env.PLAN_STARTER_YEARLY, 1999, "PLAN_STARTER_YEARLY"),
     },
     limits: {
       monthly: 300,
@@ -41,8 +46,8 @@ export const SUBSCRIPTION_PLANS = Object.freeze({
 
   growth: {
     prices: {
-      monthly: Number(process.env.PLAN_GROWTH_MONTHLY || 299),
-      yearly: Number(process.env.PLAN_GROWTH_YEARLY || 2999),
+      monthly: parsePlanPrice(process.env.PLAN_GROWTH_MONTHLY, 299, "PLAN_GROWTH_MONTHLY"),
+      yearly: parsePlanPrice(process.env.PLAN_GROWTH_YEARLY, 2999, "PLAN_GROWTH_YEARLY"),
     },
     limits: {
       monthly: 500,
@@ -52,8 +57,8 @@ export const SUBSCRIPTION_PLANS = Object.freeze({
 
   unlimited: {
     prices: {
-      monthly: Number(process.env.PLAN_UNLIMITED_MONTHLY || 599),
-      yearly: Number(process.env.PLAN_UNLIMITED_YEARLY || 5999),
+      monthly: parsePlanPrice(process.env.PLAN_UNLIMITED_MONTHLY, 599, "PLAN_UNLIMITED_MONTHLY"),
+      yearly: parsePlanPrice(process.env.PLAN_UNLIMITED_YEARLY, 5999, "PLAN_UNLIMITED_YEARLY"),
     },
     limits: {
       monthly: null,
@@ -70,7 +75,7 @@ const createError = (message, statusCode) => {
 
 // Get configuration for a selected plan and billing cycle
 export const getPlanConfig = (plan, billingCycle) => {
-  const config = SUBSCRIPTION_PLANS[plan];
+  const config = Object.hasOwn(SUBSCRIPTION_PLANS, plan) ? SUBSCRIPTION_PLANS[plan] : null;
 
   if (!config || !["monthly", "yearly"].includes(billingCycle)) {
     throw createError("Invalid subscription plan", 400);

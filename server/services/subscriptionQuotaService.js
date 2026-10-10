@@ -3,13 +3,16 @@ import { getPlanConfig } from "./subscriptionService.js";
 export const calculateUpgradeQuota = ({
   subscription,
   toPlan,
+  bookingLimit,
 }) => {
   const config = getPlanConfig(
     toPlan,
     subscription.billingCycle
   );
 
-  if (config.bookingLimit === null) {
+  const purchasedLimit = bookingLimit === undefined ? config.bookingLimit : bookingLimit;
+
+  if (purchasedLimit === null) {
     return null;
   }
 
@@ -21,7 +24,7 @@ export const calculateUpgradeQuota = ({
           subscription.bookingLimit - subscription.bookingsUsed
         );
 
-  const total = config.bookingLimit + remaining;
+  const total = purchasedLimit + remaining;
 
   if (!Number.isSafeInteger(total)) {
     throw new Error("Booking quota overflow");

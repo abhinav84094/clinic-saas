@@ -8,6 +8,7 @@ import SubscriptionPayment from "../models/SubscriptionPayment.js";
 import { getRazorpay } from "../config/razorpay.js";
 import {
   classifyRazorpayOrder,
+  recoverCheckout,
   validateOrderIdentity,
 } from "../services/subscriptionPaymentService.js";
 
@@ -56,6 +57,7 @@ export const getPendingPaymentController = async (
       );
     }
 
+    await recoverCheckout(clinicId);
     const subscription = await ClinicSubscription.findOne({
       clinicId,
     }).lean();
@@ -83,15 +85,19 @@ export const getPendingPaymentController = async (
     // Never report checkout as switchable while an
     // order-creation or billing-update lock exists.
     if (subscription.paymentOrderLock) {
-      throw fail(
-        "Payment setup is being processed or needs support review"
-      );
+      return res.status(200).json({
+        subscriptionStatus: subscription.status, payment: null,
+        canChangeBillingCycle: false, processing: true,
+        requiresReview: !subscription.paymentOrderDraft &&
+          Date.now() - new Date(subscription.paymentOrderLockedAt || subscription.updatedAt).getTime() >= 120000,
+        message: "Payment setup is being processed. Refresh to check recovery.",
+      });
     }
 
     const reviewRecord = await SubscriptionPayment.exists({
       clinicId,
       subscriptionId: subscription._id,
-      status: "review_required",
+      $or: [{status:"review_required"}, {financialReviewRequired:true}],
     });
 
     if (reviewRecord) {

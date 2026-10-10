@@ -71,6 +71,9 @@ const clinicSubscriptionSchema = new Schema(
 
     // Prevent concurrent order creation and billing updates.
     // An uncertain Razorpay operation must be reviewed before unlocking.
+    paymentOrderLockedAt: { type: Date, default: null },
+    paymentOrderDraft: { type: Schema.Types.Mixed, default: null },
+
     paymentOrderLock: {
       type: String,
       default: null,

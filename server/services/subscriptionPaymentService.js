@@ -7,7 +7,7 @@ import SubscriptionPayment from "../models/SubscriptionPayment.js";
 import ClinicMembership from "../models/ClinicMembership.js";
 
 import { getRazorpay } from "../config/razorpay.js";
-import { getPlanConfig } from "./subscriptionService.js";
+import { getPlanConfig, toPaise } from "./subscriptionService.js";
 
 import { calculateUpgradeQuota } from "./subscriptionQuotaService.js";
 
@@ -52,7 +52,7 @@ export const validateOrderIdentity = (remote, record) => {
     remote.notes?.plan !== record.plan ||
     remote.notes?.billingCycle !== record.billingCycle ||
     (
-      purpose !== "registration" &&
+      (purpose !== "registration" || remote.notes?.purpose != null) &&
       remote.notes?.purpose !== purpose
     )
   ) {
@@ -113,6 +113,10 @@ const processCapturedPayment = async ({
         throw fail("Subscription not found", 404);
       }
 
+      if (payment.financialReviewRequired) {
+        result = {paymentId: payment._id, status: "review_required", requiresReview: true};
+        return;
+      }
       // Already processed: never grant quota twice.
       if (payment.status === "paid") {
         if (payment.razorpayPaymentId !== razorpayPaymentId) {
@@ -183,7 +187,7 @@ const processCapturedPayment = async ({
 
       const validPrice =
         Number.isSafeInteger(payment.amount) &&
-        config.price * 100 === payment.amount;
+        payment.amount > 0;
 
       const sourcePeriodMatches =
         payment.sourcePeriodEnd != null &&
@@ -202,7 +206,7 @@ const processCapturedPayment = async ({
           subscription.status === "pending" &&
           subscription.plan === "basic" &&
           subscription.billingCycle === payment.billingCycle &&
-          subscription.priceSnapshot * 100 === payment.amount;
+          toPaise(subscription.priceSnapshot) === payment.amount;
       }
 
       // UPGRADE: active, unexpired, higher plan.
@@ -212,14 +216,15 @@ const processCapturedPayment = async ({
           active &&
           sourcePeriodMatches &&
           subscription.plan === payment.fromPlan &&
-          subscription.billingCycle === payment.billingCycle &&
+          subscription.billingCycle === (payment.fromBillingCycle || payment.billingCycle) &&
           planRank[payment.plan] > planRank[subscription.plan] &&
-          payment.bookingLimitSnapshot === config.bookingLimit;
+          (payment.bookingLimitSnapshot === null ? payment.plan === "unlimited" : Number.isSafeInteger(payment.bookingLimitSnapshot) && payment.bookingLimitSnapshot >= 0 && payment.plan !== "unlimited");
 
         if (eligible) {
           newBookingLimit = calculateUpgradeQuota({
             subscription,
             toPlan: payment.plan,
+            bookingLimit: payment.bookingLimitSnapshot,
           });
         }
       }
@@ -258,9 +263,8 @@ const processCapturedPayment = async ({
       const days =
         payment.billingCycle === "monthly" ? 30 : 365;
 
-      const end = new Date(
-        now.getTime() + days * 86400000
-      );
+      // Validity starts when the captured payment is verified and recorded.
+      const end = new Date(now.getTime() + days * 86400000);
 
       payment.status = "paid";
       payment.razorpayPaymentId = razorpayPaymentId;
@@ -268,9 +272,10 @@ const processCapturedPayment = async ({
 
       subscription.plan = payment.plan;
       subscription.billingCycle = payment.billingCycle;
-      subscription.priceSnapshot = config.price;
-      subscription.bookingLimit = newBookingLimit;
-      subscription.bookingsUsed = 0;
+      subscription.priceSnapshot = payment.amount / 100;
+      const bookingsUsed = purpose === "upgrade" ? subscription.bookingsUsed : 0;
+      subscription.bookingLimit = newBookingLimit === null ? null : newBookingLimit + bookingsUsed;
+      subscription.bookingsUsed = bookingsUsed;
       subscription.status = "active";
       subscription.currentPeriodStart = now;
       subscription.currentPeriodEnd = end;
@@ -286,7 +291,7 @@ const processCapturedPayment = async ({
         plan: subscription.plan,
         billingCycle: subscription.billingCycle,
         bookingLimit: subscription.bookingLimit,
-        bookingsUsed: 0,
+        bookingsUsed: subscription.bookingsUsed,
         currentPeriodStart: now,
         currentPeriodEnd: end,
         alreadyProcessed: false,
@@ -330,13 +335,46 @@ const verifyCapturedPayment = async ({
   });
 };
 
+// Validate local payment data before creating an external order. Only a definite
+// Razorpay rejection may release the lock; timeouts can leave an unknown order.
+const createRemoteOrder = async (razorpay, options, onRejected, subscription, token, draft) => {
+  try {
+    const saved = await ClinicSubscription.updateOne(
+      { _id: subscription._id, paymentOrderLock: token },
+      { $set: { paymentOrderDraft: { ...draft, receipt: options.receipt }, paymentOrderLockedAt: new Date() } }
+    );
+    if (saved.matchedCount !== 1) throw fail("Checkout lock changed");
+  } catch (error) {
+    onRejected();
+    throw error;
+  }
+  try {
+    return await razorpay.orders.create(options);
+  } catch (error) {
+    if ([400, 401, 403, 404, 422, 429].includes(error.statusCode)) {
+      onRejected();
+    }
+    throw error;
+  }
+};
+
+const validatePaymentDraft = async (fields) => {
+  await new SubscriptionPayment({
+    ...fields,
+    razorpayOrderId: "pending_validation",
+    currency: "INR",
+    status: "created",
+  }).validate();
+  return fields;
+};
+
 export const createSubscriptionPaymentOrder = async ({
   clinicId,
   userId,
 }) => {
   valid(clinicId, userId);
   await requireOwner(clinicId, userId);
-
+  await recoverCheckout(clinicId);
   const token = crypto.randomUUID();
 
   const subscription = await ClinicSubscription.findOneAndUpdate(
@@ -346,8 +384,8 @@ export const createSubscriptionPaymentOrder = async ({
       plan: "basic",
       paymentOrderLock: null,
     },
-    { $set: { paymentOrderLock: token } },
-    { new: true }
+    { $set: { paymentOrderLock: token, paymentOrderLockedAt: new Date() } },
+    { returnDocument: 'after' }
   );
 
   if (!subscription) {
@@ -357,17 +395,13 @@ export const createSubscriptionPaymentOrder = async ({
   let releaseLock = true;
 
   try {
-    const config = getPlanConfig(
-      subscription.plan,
-      subscription.billingCycle
-    );
+    getPlanConfig(subscription.plan, subscription.billingCycle);
 
-    const amount = subscription.priceSnapshot * 100;
+    const amount = toPaise(subscription.priceSnapshot);
 
     if (
       !Number.isSafeInteger(amount) ||
-      amount <= 0 ||
-      config.price !== subscription.priceSnapshot
+      amount <= 0
     ) {
       throw fail("Invalid subscription amount", 500);
     }
@@ -422,9 +456,17 @@ export const createSubscriptionPaymentOrder = async ({
 
     // If Razorpay creation succeeds but DB persistence fails,
     // keep the lock for manual reconciliation.
+    const draft = await validatePaymentDraft({
+      clinicId,
+      subscriptionId: subscription._id,
+      purpose: "registration",
+      plan: subscription.plan,
+      billingCycle: subscription.billingCycle,
+      amount,
+    });
     releaseLock = false;
 
-    const order = await razorpay.orders.create({
+    const order = await createRemoteOrder(razorpay, {
       amount,
       currency: "INR",
       receipt: `sub_${subscription._id}_${Date.now()}`.slice(
@@ -436,8 +478,9 @@ export const createSubscriptionPaymentOrder = async ({
         subscriptionId: String(subscription._id),
         plan: subscription.plan,
         billingCycle: subscription.billingCycle,
+        purpose: "registration",
       },
-    });
+    }, () => { releaseLock = true; }, subscription, token, draft);
 
     if (
       !order?.id ||
@@ -450,6 +493,7 @@ export const createSubscriptionPaymentOrder = async ({
     await SubscriptionPayment.create({
       clinicId,
       subscriptionId: subscription._id,
+      purpose :"registration",
       plan: subscription.plan,
       billingCycle: subscription.billingCycle,
       amount,
@@ -474,7 +518,7 @@ export const createSubscriptionPaymentOrder = async ({
           _id: subscription._id,
           paymentOrderLock: token,
         },
-        { $set: { paymentOrderLock: null } }
+        { $set: { paymentOrderLock: null, paymentOrderLockedAt: null, paymentOrderDraft: null } }
       );
     }
   }
@@ -495,6 +539,7 @@ export const createPlanChangeOrder = async ({
     throw fail("Invalid payment purpose", 400);
   }
 
+  await recoverCheckout(clinicId);
   const token = crypto.randomUUID();
 
   const subscription = await ClinicSubscription.findOneAndUpdate(
@@ -503,9 +548,9 @@ export const createPlanChangeOrder = async ({
       paymentOrderLock: null,
     },
     {
-      $set: { paymentOrderLock: token },
+      $set: { paymentOrderLock: token, paymentOrderLockedAt: new Date() },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!subscription) {
@@ -548,8 +593,10 @@ export const createPlanChangeOrder = async ({
         );
       }
 
-      // Upgrade always keeps current billing cycle.
-      billingCycle = subscription.billingCycle;
+      billingCycle ??= subscription.billingCycle;
+      if (!["monthly", "yearly"].includes(billingCycle)) {
+        throw fail("Invalid billing cycle", 400);
+      }
     }
 
     if (purpose === "renewal") {
@@ -566,7 +613,7 @@ export const createPlanChangeOrder = async ({
     }
 
     const config = getPlanConfig(toPlan, billingCycle);
-    const amount = config.price * 100;
+    const amount = toPaise(config.price);
 
     if (!Number.isSafeInteger(amount) || amount <= 0) {
       throw fail("Invalid plan price", 500);
@@ -579,7 +626,7 @@ export const createPlanChangeOrder = async ({
     const needsReview = await SubscriptionPayment.exists({
       clinicId,
       subscriptionId: subscription._id,
-      status: "review_required",
+      $or: [{status: "review_required"}, {financialReviewRequired: true}],
     });
 
     if (needsReview) {
@@ -631,15 +678,19 @@ export const createPlanChangeOrder = async ({
         record.purpose === purpose &&
         record.plan === toPlan &&
         record.billingCycle === billingCycle &&
-        record.amount === amount &&
+        Number.isSafeInteger(record.amount) && record.amount > 0 &&
         record.fromPlan === subscription.plan &&
         samePeriod;
 
       if (!sameOrder) {
-        throw fail(
-          "An older checkout must be resolved before changing plans."
-        );
+        if (record.status === "created") {
+          record.status = "superseded";
+          record.supersededAt = new Date();
+          await record.save();
+        }
+        continue; // Old orders remain auditable; late captures require review.
       }
+      if (record.status !== "created") continue;
 
       reusable ??= record;
     }
@@ -656,9 +707,21 @@ export const createPlanChangeOrder = async ({
 
     // A network timeout during Razorpay creation may
     // leave an unknown remote order. Preserve the lock.
+    const draft = await validatePaymentDraft({
+      clinicId,
+      subscriptionId: subscription._id,
+      purpose,
+      fromPlan: subscription.plan,
+      fromBillingCycle: subscription.billingCycle,
+      sourcePeriodEnd: subscription.currentPeriodEnd,
+      plan: toPlan,
+      billingCycle,
+      amount,
+      bookingLimitSnapshot: config.bookingLimit,
+    });
     releaseLock = false;
 
-    const order = await razorpay.orders.create({
+    const order = await createRemoteOrder(razorpay, {
       amount,
       currency: "INR",
       receipt: `plan_${subscription._id}_${Date.now()}`
@@ -670,7 +733,7 @@ export const createPlanChangeOrder = async ({
         billingCycle,
         purpose,
       },
-    });
+    }, () => { releaseLock = true; }, subscription, token, draft);
 
     if (
       !order?.id ||
@@ -685,6 +748,7 @@ export const createPlanChangeOrder = async ({
       subscriptionId: subscription._id,
       purpose,
       fromPlan: subscription.plan,
+      fromBillingCycle: subscription.billingCycle,
       sourcePeriodEnd: subscription.currentPeriodEnd,
       plan: toPlan,
       billingCycle,
@@ -742,6 +806,7 @@ export const verifySubscriptionPayment = async ({
     throw fail("Invalid payment verification details", 400);
   }
 
+  await recoverCheckout(clinicId);
   const record = await SubscriptionPayment.findOne({
     clinicId,
     razorpayOrderId,
@@ -790,6 +855,7 @@ export const reconcileSubscriptionPayment = async ({
     throw fail("Invalid reconciliation details", 400);
   }
 
+  await recoverCheckout(clinicId);
   const record = await SubscriptionPayment.findOne({
     clinicId,
     razorpayOrderId,
@@ -856,10 +922,12 @@ export const processSubscriptionWebhook = async ({
   });
 
   if (!record) {
-    return {
-      ignored: true,
-      reason: "Unknown subscription payment order",
-    };
+    const remote = await getRazorpay().orders.fetch(razorpayOrderId);
+    if (!remote.notes?.subscriptionId || !remote.notes?.clinicId) return { ignored: true };
+    await recoverCheckout(remote.notes.clinicId, remote);
+    const recovered = await SubscriptionPayment.findOne({ razorpayOrderId });
+    if (!recovered) throw fail("Subscription order requires reconciliation", 503);
+    return verifyCapturedPayment({ record: recovered, razorpayPaymentId, razorpay: getRazorpay() });
   }
 
   return verifyCapturedPayment({
@@ -867,4 +935,73 @@ export const processSubscriptionWebhook = async ({
     razorpayPaymentId,
     razorpay: getRazorpay(),
   });
+};
+
+// The durable draft is written before the external call. Recovery only restores
+// the exact receipt and amount; it never expires an uncertain external operation.
+export const recoverCheckout = async (clinicId, knownOrder = null) => {
+  const subscription = await ClinicSubscription.findOne({ clinicId });
+  if (!subscription?.paymentOrderLock) return false;
+  const lockedAt = subscription.paymentOrderLockedAt || subscription.updatedAt;
+  if (!knownOrder && Date.now() - new Date(lockedAt).getTime() < 120000) return false;
+  const draft = subscription.paymentOrderDraft;
+  if (!draft) {
+    // New timestamped locks cannot have called Razorpay without first saving a
+    // draft. A crash before that write is safe to release; legacy locks are not.
+    if (!subscription.paymentOrderLockedAt) return false;
+    const result = await ClinicSubscription.updateOne({
+      _id: subscription._id, paymentOrderLock: subscription.paymentOrderLock,
+      paymentOrderLockedAt: subscription.paymentOrderLockedAt, paymentOrderDraft: null,
+    }, {$set:{paymentOrderLock:null, paymentOrderLockedAt:null}});
+    return result.modifiedCount === 1;
+  }
+  const response = knownOrder ? { items: [knownOrder] } :
+    await getRazorpay().orders.all({ receipt: draft.receipt, count: 2 });
+  const orders = response.items || [];
+  if (orders.length !== 1 || orders[0].receipt !== draft.receipt) {
+    throw fail("Checkout outcome is uncertain. Retry verification or contact support.", 503);
+  }
+  const remote = orders[0];
+  const fields = { ...draft, razorpayOrderId: remote.id, currency: "INR", status: "created" };
+  delete fields.receipt;
+  validateOrderIdentity(remote, fields);
+  await new SubscriptionPayment(fields).validate();
+  await mongoose.connection.transaction(async (session) => {
+    const current = await ClinicSubscription.findOne({
+      _id: subscription._id, paymentOrderLock: subscription.paymentOrderLock,
+      "paymentOrderDraft.receipt": draft.receipt,
+    }).session(session);
+    if (!current) return;
+    const existing = await SubscriptionPayment.findOne({razorpayOrderId: remote.id}).session(session);
+    if (existing) validateOrderIdentity(remote, existing);
+    else await SubscriptionPayment.create([{
+      ...fields, createdAt: new Date(remote.created_at * 1000),
+      expiresAt: new Date(remote.created_at * 1000 + 3600000),
+    }], { session });
+    current.paymentOrderLock = null;
+    current.paymentOrderLockedAt = null;
+    current.paymentOrderDraft = null;
+    await current.save({ session });
+  });
+  return true;
+};
+
+// Record financial exceptions for operator review. Refund/access decisions remain
+// explicit business policy; never revoke a newer subscription for an old payment.
+export const processSubscriptionFinancialEvent = async ({paymentId, event}) => {
+  if (typeof paymentId !== "string" || !paymentId.startsWith("pay_")) throw fail("Invalid financial event", 400);
+  const remote = await getRazorpay().payments.fetch(paymentId);
+  const record = await SubscriptionPayment.findOne({razorpayOrderId: remote.order_id});
+  if (!record) {
+    const order = await getRazorpay().orders.fetch(remote.order_id);
+    if (order.notes?.subscriptionId) throw fail("Financial event needs order reconciliation", 503);
+    return {ignored: true};
+  }
+  if (remote.amount !== record.amount || remote.currency !== record.currency ||
+      (record.razorpayPaymentId && record.razorpayPaymentId !== paymentId)) throw fail("Financial event identity mismatch");
+  await SubscriptionPayment.updateOne({_id:record._id}, {$set:{
+    financialReviewRequired:true, reviewRequiredAt:new Date(),
+    reviewReason:`Financial event requires operator decision: ${event}`,
+  }});
+  return {requiresReview:true};
 };
