@@ -80,24 +80,24 @@ export default function GooglePasswordSetup({
   };
 
   const inputClass =
-    "min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-sm";
+    "min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 pl-10 pr-12 text-base text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-sm";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+      <div className="rounded-xl border border-blue-100 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4">
         <div className="flex items-start gap-3">
           <ShieldCheck
             size={20}
-            className="mt-0.5 shrink-0 text-blue-600"
+            className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-300"
             aria-hidden="true"
           />
 
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-blue-900">
+            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">
               Google account verified
             </p>
 
-            <p className="mt-1 break-all text-sm text-blue-700">
+            <p className="mt-1 break-all text-sm text-blue-700 dark:text-blue-300">
               {email}
             </p>
           </div>
@@ -107,7 +107,7 @@ export default function GooglePasswordSetup({
       <div>
         <label
           htmlFor="googlePassword"
-          className="mb-2 block text-sm font-medium text-slate-700"
+          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
         >
           Create Password
         </label>
@@ -115,7 +115,7 @@ export default function GooglePasswordSetup({
         <div className="relative">
           <Lock
             size={18}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400"
             aria-hidden="true"
           />
 
@@ -143,7 +143,7 @@ export default function GooglePasswordSetup({
             aria-label={
               showPassword ? "Hide password" : "Show password"
             }
-            className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:text-slate-800"
+            className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 hover:dark:text-slate-200"
           >
             {showPassword ? (
               <EyeOff size={18} />
@@ -157,7 +157,7 @@ export default function GooglePasswordSetup({
       <div>
         <label
           htmlFor="googleConfirmPassword"
-          className="mb-2 block text-sm font-medium text-slate-700"
+          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
         >
           Confirm Password
         </label>
@@ -165,7 +165,7 @@ export default function GooglePasswordSetup({
         <div className="relative">
           <Lock
             size={18}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400"
             aria-hidden="true"
           />
 
@@ -195,7 +195,7 @@ export default function GooglePasswordSetup({
                 ? "Hide confirm password"
                 : "Show confirm password"
             }
-            className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:text-slate-800"
+            className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 hover:dark:text-slate-200"
           >
             {showConfirmPassword ? (
               <EyeOff size={18} />
@@ -209,7 +209,7 @@ export default function GooglePasswordSetup({
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          className="flex items-start gap-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300"
         >
           <AlertCircle
             size={18}
@@ -239,7 +239,7 @@ export default function GooglePasswordSetup({
         )}
       </button>
 
-      <p className="text-center text-xs leading-relaxed text-slate-500">
+      <p className="text-center text-xs leading-relaxed text-slate-500 dark:text-slate-400">
         You can use either Google Sign-In or your password
         to access your account after registration.
       </p>

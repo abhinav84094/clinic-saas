@@ -1,3 +1,4 @@
+import ThemeToggle from "../../components/ThemeToggle";
 
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -104,8 +105,11 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen min-h-dvh w-full min-w-0 items-start justify-center overflow-x-hidden bg-slate-50 px-3 py-5 sm:items-center sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      <div className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-slate-200 bg-white px-4 py-6 shadow-sm min-[375px]:px-5 sm:px-8 sm:py-8">
+    <main className="flex min-h-screen min-h-dvh w-full min-w-0 items-start justify-center overflow-x-hidden bg-slate-50 dark:bg-slate-950 px-3 py-5 sm:items-center sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <div className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-6 shadow-sm min-[375px]:px-5 sm:px-8 sm:py-8">
+        <div className="mb-4 flex justify-end">
+          <ThemeToggle />
+        </div>
         <div className="mb-6 text-center sm:mb-8">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white sm:h-14 sm:w-14">
             <Stethoscope
@@ -115,11 +119,11 @@ export default function LoginPage() {
             />
           </div>
 
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 min-[375px]:text-2xl sm:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 min-[375px]:text-2xl sm:text-3xl">
             Welcome Back
           </h1>
 
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+          <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
             Sign in to manage your clinic
           </p>
         </div>
@@ -131,7 +135,7 @@ export default function LoginPage() {
           <div className="w-full min-w-0">
             <label
               htmlFor="email"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
             >
               Email Address
             </label>
@@ -140,7 +144,7 @@ export default function LoginPage() {
               <Mail
                 size={18}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400"
               />
 
               <input
@@ -153,7 +157,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 disabled={loading}
-                className="block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-3 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                className="block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 pl-10 pr-3 text-base text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-400 dark:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
               />
             </div>
           </div>
@@ -161,7 +165,7 @@ export default function LoginPage() {
           <div className="w-full min-w-0">
             <label
               htmlFor="password"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
             >
               Password
             </label>
@@ -170,7 +174,7 @@ export default function LoginPage() {
               <Lock
                 size={18}
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400"
               />
 
               <input
@@ -183,7 +187,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 required
                 disabled={loading}
-                className="block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                className="block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 pl-10 pr-12 text-base text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-400 dark:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
               />
 
               <button
@@ -197,7 +201,7 @@ export default function LoginPage() {
                     : "Show password"
                 }
                 aria-pressed={showPassword}
-                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500"
+                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 dark:text-slate-400 transition hover:text-slate-700 hover:dark:text-slate-200 focus-visible:outline-2 focus-visible:outline-blue-500"
               >
                 {showPassword ? (
                   <EyeOff
@@ -217,7 +221,7 @@ export default function LoginPage() {
           {error && (
             <div
               role="alert"
-              className="flex min-w-0 items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              className="flex min-w-0 items-start gap-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300"
             >
               <AlertCircle
                 size={18}
@@ -260,11 +264,11 @@ export default function LoginPage() {
 
         <div className="relative my-5 w-full min-w-0 sm:my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200" />
+            <div className="w-full border-t border-slate-200 dark:border-slate-700" />
           </div>
 
           <div className="relative flex justify-center">
-            <span className="bg-white px-3 text-center text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:px-4 sm:text-xs">
+            <span className="bg-white dark:bg-slate-900 px-3 text-center text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-400 sm:px-4 sm:text-xs">
               Or continue with
             </span>
           </div>
@@ -279,7 +283,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="mt-5 break-words text-center text-sm leading-relaxed text-slate-500 sm:mt-6">
+        <p className="mt-5 break-words text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400 sm:mt-6">
           New to the platform?{" "}
           Sign In by Google
         </p>

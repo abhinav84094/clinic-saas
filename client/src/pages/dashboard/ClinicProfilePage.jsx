@@ -45,7 +45,7 @@ const initialForm = {
 };
 
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100";
+  "mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 dark:disabled:bg-slate-800";
 
 function getError(error) {
   const issues = error.response?.data?.errors;
@@ -95,7 +95,7 @@ function Field({
   placeholder = "",
 }) {
   return (
-    <label className="block min-w-0 text-sm font-medium text-slate-700">
+    <label className="block min-w-0 text-sm font-medium text-slate-700 dark:text-slate-200">
       {label}
       <input
         name={name}
@@ -331,7 +331,7 @@ export default function ClinicProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-3 p-12 text-slate-500">
+      <div className="flex items-center justify-center gap-3 px-4 py-8 sm:p-12 text-slate-500 dark:text-slate-400">
         <LoaderCircle size={20} className="animate-spin" />
         Loading clinic profile...
       </div>
@@ -340,7 +340,7 @@ export default function ClinicProfilePage() {
 
   if (!clinic) {
     return (
-      <div role="alert" className="rounded-xl bg-red-50 p-5 text-red-700">
+      <div role="alert" className="rounded-xl bg-red-50 dark:bg-red-950/40 p-5 text-red-700 dark:text-red-300">
         {error || "Clinic not found."}
         <button type="button" onClick={refresh} className="ml-3 underline">
           Retry
@@ -353,16 +353,16 @@ export default function ClinicProfilePage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="mb-3 flex items-center gap-2 text-blue-600">
+          <div className="mb-3 flex items-center gap-2 text-blue-600 dark:text-blue-300">
             <Building2 size={22} />
             <span className="text-sm font-semibold">Clinic Management</span>
           </div>
 
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
             Clinic Profile
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Update your clinic's public information and contact details.
           </p>
         </div>
@@ -371,7 +371,7 @@ export default function ClinicProfilePage() {
           type="button"
           onClick={refresh}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
         >
           <RefreshCw size={16} />
           Refresh
@@ -379,28 +379,28 @@ export default function ClinicProfilePage() {
       </header>
 
       {error && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div role="alert" className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
 
       {success && (
-        <div role="status" className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+        <div role="status" className="flex items-center gap-2 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-4 text-sm text-green-700 dark:text-green-300">
           <CheckCircle2 size={18} />
           {success}
         </div>
       )}
 
       {!canEdit && (
-        <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+        <p className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
           Editing is disabled because this clinic is {clinic.status}.
         </p>
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-7">
           <h2 className="text-lg font-bold">Basic Information</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             These details may appear on your clinic website.
           </p>
 
@@ -417,7 +417,7 @@ export default function ClinicProfilePage() {
               disabled
             />
 
-            <label className="sm:col-span-2 text-sm font-medium text-slate-700">
+            <label className="sm:col-span-2 text-sm font-medium text-slate-700 dark:text-slate-200">
               Clinic Description
               <textarea
                 name="description"
@@ -431,7 +431,7 @@ export default function ClinicProfilePage() {
             </label>
 
             
-            <label className="block text-sm font-medium text-slate-700">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
             Clinic Timezone
 
             <select
@@ -457,7 +457,7 @@ export default function ClinicProfilePage() {
                 ))}
             </select>
 
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                 Select the timezone where your clinic operates.
                 Appointment timings will use this timezone.
             </p>
@@ -466,7 +466,7 @@ export default function ClinicProfilePage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-7">
           <h2 className="text-lg font-bold">Contact Information</h2>
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -486,14 +486,14 @@ export default function ClinicProfilePage() {
             })}
           </div>
 
-          <p className="mt-4 text-xs text-slate-500">
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
             Changing existing contact values is supported.
             Clearing saved phone/email/WhatsApp values requires
             a backend update and is not enabled yet.
           </p>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-7">
           <h2 className="text-lg font-bold">Clinic Address</h2>
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -513,7 +513,7 @@ export default function ClinicProfilePage() {
           </div>
         </section>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <button
             type="button"
             onClick={backToDashboard}

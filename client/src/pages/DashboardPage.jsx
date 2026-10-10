@@ -53,21 +53,21 @@ const getRemainingDays = (endDate, now) => {
 
 function StatCard({ label, value, icon: Icon, description }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+    <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300">
         <Icon size={21} />
       </div>
 
-      <p className="text-sm font-medium text-slate-500">
+      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
         {label}
       </p>
 
-      <p className="mt-2 text-3xl font-bold text-slate-900">
+      <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
         {value}
       </p>
 
       {description && (
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="mt-2 text-xs text-slate-400 dark:text-slate-400">
           {description}
         </p>
       )}
@@ -79,25 +79,25 @@ function QuickAction({ to, icon: Icon, title, description }) {
   return (
     <Link
       to={to}
-      className="group flex items-center gap-4 rounded-xl border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50"
+      className="group flex items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-700 p-4 transition hover:border-blue-200 hover:dark:border-blue-800 hover:bg-blue-50 hover:dark:bg-blue-950/40"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:bg-white group-hover:text-blue-600">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-white dark:bg-slate-900 group-hover:text-blue-600 dark:text-blue-300">
         <Icon size={21} />
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-slate-900">
+        <p className="font-semibold text-slate-900 dark:text-slate-100">
           {title}
         </p>
 
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {description}
         </p>
       </div>
 
       <ArrowUpRight
         size={17}
-        className="shrink-0 text-slate-400 group-hover:text-blue-600"
+        className="shrink-0 text-slate-400 dark:text-slate-400 group-hover:text-blue-600 dark:text-blue-300"
       />
     </Link>
   );
@@ -286,11 +286,11 @@ export default function DashboardPage() {
     <div className="space-y-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
             Clinic Overview
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Welcome back,{" "}
             {user?.name?.split(" ")[0] || "Owner"}.
             Manage your clinic from one place.
@@ -301,7 +301,7 @@ export default function DashboardPage() {
           type="button"
           onClick={() => load()}
           disabled={loading || refreshing}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 hover:dark:bg-slate-950 disabled:opacity-50"
         >
           <RefreshCw
             size={16}
@@ -314,7 +314,7 @@ export default function DashboardPage() {
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
         >
           {error}
 
@@ -329,7 +329,7 @@ export default function DashboardPage() {
       )}
 
       {loading && (
-        <div className="flex items-center justify-center gap-3 rounded-2xl bg-white p-16 text-slate-500">
+        <div className="flex items-center justify-center gap-3 rounded-2xl bg-white dark:bg-slate-900 px-4 py-8 sm:p-16 text-slate-500 dark:text-slate-400">
           <LoaderCircle
             size={21}
             className="animate-spin"
@@ -347,13 +347,13 @@ export default function DashboardPage() {
           </section>
 
           {clinic.status === "draft" && (
-            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5">
               <div>
-                <h2 className="font-bold text-amber-900">
+                <h2 className="font-bold text-amber-900 dark:text-amber-300">
                   Clinic is not published
                 </h2>
 
-                <p className="mt-1 text-sm text-amber-800">
+                <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
                   Complete your clinic setup and review
                   publishing requirements.
                 </p>
@@ -369,14 +369,14 @@ export default function DashboardPage() {
           )}
 
           <div className="grid gap-6 xl:grid-cols-3">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm xl:col-span-2">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                     Quick Actions
                   </h2>
 
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     Frequently used clinic management tools
                   </p>
                 </div>
@@ -393,14 +393,14 @@ export default function DashboardPage() {
             </section>
 
             {/* Clinic Status: existing UI + subscription details */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 Clinic Status
               </h2>
 
               <div className="mt-5 space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
                     Clinic
                   </span>
 
@@ -410,15 +410,15 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
                     Status
                   </span>
 
                   <span
                     className={`text-sm font-semibold capitalize ${
                       subscriptionExpired
-                        ? "text-red-600"
-                        : "text-slate-900"
+                        ? "text-red-600 dark:text-red-300"
+                        : "text-slate-900 dark:text-slate-100"
                     }`}
                   >
                     {subscriptionExpired
@@ -428,7 +428,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
                     Active Doctors
                   </span>
 
@@ -438,7 +438,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
                     Website
                   </span>
 
@@ -447,12 +447,12 @@ export default function DashboardPage() {
                       <>
                         <CheckCircle2
                           size={15}
-                          className="text-green-600"
+                          className="text-green-600 dark:text-green-300"
                         />
                         Published
                       </>
                     ) : subscriptionExpired ? (
-                      <span className="text-red-600">
+                      <span className="text-red-600 dark:text-red-300">
                         Offline
                       </span>
                     ) : (
@@ -464,20 +464,20 @@ export default function DashboardPage() {
 
               {/* Subscription countdown */}
               {subscription?.currentPeriodEnd && (
-                <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="mt-5 border-t border-slate-100 dark:border-slate-800 pt-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-medium text-slate-500">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         Subscription Validity
                       </p>
 
                       <p
                         className={`mt-1 text-xl font-bold ${
                           subscriptionExpired
-                            ? "text-red-600"
+                            ? "text-red-600 dark:text-red-300"
                             : expiringSoon
-                              ? "text-amber-600"
-                              : "text-slate-900"
+                              ? "text-amber-600 dark:text-amber-300"
+                              : "text-slate-900 dark:text-slate-100"
                         }`}
                       >
                         {subscriptionExpired
@@ -497,12 +497,12 @@ export default function DashboardPage() {
                       className={
                         expiringSoon || subscriptionExpired
                           ? "text-amber-500"
-                          : "text-slate-400"
+                          : "text-slate-400 dark:text-slate-400"
                       }
                     />
                   </div>
 
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                     {subscription.billingCycle === "yearly"
                       ? "Yearly"
                       : "Monthly"}{" "}
@@ -512,7 +512,7 @@ export default function DashboardPage() {
 
                   {subscriptionActive &&
                     remainingDays !== null && (
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div
                           className={`h-full rounded-full transition-all ${
                             expiringSoon
@@ -537,13 +537,13 @@ export default function DashboardPage() {
                     )}
 
                   {expiringSoon && (
-                    <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3">
                       <AlertTriangle
                         size={18}
-                        className="mt-0.5 shrink-0 text-amber-600"
+                        className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-300"
                       />
 
-                      <p className="text-xs leading-relaxed text-amber-900">
+                      <p className="text-xs leading-relaxed text-amber-900 dark:text-amber-300">
                         Your clinic website will be suspended in{" "}
                         <strong>
                           {remainingDays}{" "}
@@ -557,8 +557,8 @@ export default function DashboardPage() {
                   )}
 
                   {subscriptionExpired && (
-                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
-                      <p className="text-xs leading-relaxed text-red-700">
+                    <div className="mt-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3">
+                      <p className="text-xs leading-relaxed text-red-700 dark:text-red-300">
                         Your subscription has expired.
                         Renew your plan to reactivate your
                         clinic website and services.
@@ -579,33 +579,33 @@ export default function DashboardPage() {
               )}
 
               {subscriptionError && (
-                <p className="mt-4 text-xs text-amber-700">
+                <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">
                   {subscriptionError}
                 </p>
               )}
 
               <Link
                 to={`/dashboard/clinic/${clinicId}/website`}
-                className="mt-3 block rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
+                className="mt-3 block rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-200"
               >
                 Website Settings
               </Link>
             </section>
           </div>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                   Upcoming Appointments
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Your next scheduled patient visits
                 </p>
               </div>
 
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                 {dashboard.upcomingAppointments?.length || 0} shown
               </span>
             </div>
@@ -618,11 +618,11 @@ export default function DashboardPage() {
                     className="flex flex-wrap items-center justify-between gap-4 py-4"
                   >
                     <div>
-                      <p className="font-semibold text-slate-900">
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">
                         {item.patientName}
                       </p>
 
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         {item.doctorId?.name ||
                           "Doctor unavailable"}
                         {" · "}
@@ -632,11 +632,11 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="text-left sm:text-right">
-                      <p className="text-sm font-semibold text-slate-700">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                         {formatDate(item.startAt)}
                       </p>
 
-                      <p className="mt-1 text-xs font-semibold capitalize text-blue-600">
+                      <p className="mt-1 text-xs font-semibold capitalize text-blue-600 dark:text-blue-300">
                         {item.status}
                       </p>
                     </div>
@@ -644,17 +644,17 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-4 py-10 text-center">
                 <CalendarDays
                   size={30}
-                  className="mx-auto text-slate-400"
+                  className="mx-auto text-slate-400 dark:text-slate-400"
                 />
 
-                <h3 className="mt-3 font-semibold text-slate-800">
+                <h3 className="mt-3 font-semibold text-slate-800 dark:text-slate-200">
                   No upcoming appointments
                 </h3>
 
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                   Upcoming patient bookings will appear here
                   once appointment booking is available.
                 </p>

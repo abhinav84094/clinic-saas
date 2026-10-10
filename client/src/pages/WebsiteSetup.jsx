@@ -117,11 +117,11 @@ export default function WebsiteSetupPage() {
   const hasUnsavedSelection = selectedTemplate !== savedTemplate;
 
   return (
-    <main className="min-h-dvh bg-slate-100 px-4 py-6 sm:px-6 sm:py-10">
+    <main className="min-h-dvh bg-slate-100 dark:bg-slate-800 px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-6xl space-y-6">
         <Link
           to={isDraft ? `${base}/services/setup` : `/dashboard/clinic/${clinicId}`}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
         >
           <ArrowLeft size={17} />
           {isDraft ? "Back to Services & Availability" : "Back to Dashboard"}
@@ -130,34 +130,34 @@ export default function WebsiteSetupPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             {isDraft && (
-              <p className="text-xs font-bold uppercase tracking-wider text-blue-600">Step 4 of 6</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-300">Step 4 of 6</p>
             )}
-            <h1 className="mt-2 text-2xl font-bold text-slate-900">Your Clinic Website</h1>
-            <p className="mt-2 text-sm text-slate-600">
+            <h1 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Your Clinic Website</h1>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               Choose a template and preview your clinic's information in that design.
             </p>
           </div>
-          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+          <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1">
             <button type="button" aria-pressed={device === "desktop"}
               onClick={() => setDevice("desktop")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${device === "desktop" ? "bg-blue-600 text-white" : "text-slate-600"}`}>
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${device === "desktop" ? "bg-blue-600 text-white" : "text-slate-600 dark:text-slate-300"}`}>
               <Monitor size={16} /> Desktop
             </button>
             <button type="button" aria-pressed={device === "mobile"}
               onClick={() => setDevice("mobile")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${device === "mobile" ? "bg-blue-600 text-white" : "text-slate-600"}`}>
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${device === "mobile" ? "bg-blue-600 text-white" : "text-slate-600 dark:text-slate-300"}`}>
               <Smartphone size={16} /> Mobile
             </button>
           </div>
         </div>
 
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300">{error}</p>}
 
         {clinic && (
           <>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h2 className="text-lg font-bold text-slate-900">Choose Your Website Template</h2>
-              <p className="mt-1 text-sm text-slate-500">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Choose Your Website Template</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Your saved clinic details automatically appear in every template.
               </p>
               <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -167,21 +167,21 @@ export default function WebsiteSetupPage() {
                     <button key={template.id} type="button" aria-pressed={selected}
                       disabled={!canEdit || savingTemplate}
                       onClick={() => { setSelectedTemplate(template.id); setSuccess(""); }}
-                      className={`rounded-xl border-2 p-5 text-left transition disabled:opacity-60 ${selected ? "border-blue-600 bg-blue-50" : "border-slate-200 hover:border-blue-300"}`}>
-                      <div className="mb-4 flex h-28 items-center justify-center rounded-lg bg-slate-100 text-3xl font-bold text-blue-600">
+                      className={`rounded-xl border-2 p-5 text-left transition disabled:opacity-60 ${selected ? "border-blue-600 bg-blue-50 dark:bg-blue-950/40" : "border-slate-200 dark:border-slate-700 hover:border-blue-300"}`}>
+                      <div className="mb-4 flex h-28 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-3xl font-bold text-blue-600 dark:text-blue-300">
                         {template.id}
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="font-semibold">{template.name}</span>
-                        {selected && <span className="text-xs font-bold text-blue-600">Selected</span>}
+                        {selected && <span className="text-xs font-bold text-blue-600 dark:text-blue-300">Selected</span>}
                       </div>
                     </button>
                   );
                 })}
               </div>
-              {success && <p role="status" className="mt-4 text-sm text-green-700">{success}</p>}
+              {success && <p role="status" className="mt-4 text-sm text-green-700 dark:text-green-300">{success}</p>}
               {hasUnsavedSelection && (
-                <p className="mt-4 text-sm text-amber-700">Previewing an unsaved template selection.</p>
+                <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">Previewing an unsaved template selection.</p>
               )}
               <button type="button" onClick={saveTemplate}
                 disabled={!canEdit || savingTemplate || !hasUnsavedSelection}
@@ -190,8 +190,8 @@ export default function WebsiteSetupPage() {
               </button>
             </section>
 
-            <div className="overflow-auto rounded-2xl border border-slate-200 bg-slate-200 p-2 shadow-sm sm:p-5">
-              <div className={`mx-auto overflow-hidden rounded-xl bg-white shadow-lg transition-all ${device === "mobile" ? "max-w-[390px]" : "max-w-full"}`}>
+            <div className="overflow-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-200 dark:bg-slate-700 p-2 shadow-sm sm:p-5">
+              <div className={`mx-auto overflow-hidden rounded-xl bg-white dark:bg-slate-900 shadow-lg transition-all ${device === "mobile" ? "max-w-[390px]" : "max-w-full"}`}>
                 <ClinicTemplateRenderer
                   templateId={selectedTemplate}
                   clinic={clinic}
@@ -203,8 +203,8 @@ export default function WebsiteSetupPage() {
             </div>
 
             {isDraft && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <p className="text-sm text-slate-600">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
                   Your clinic information is already saved. Continue once your template selection is saved.
                 </p>
                 <button type="button"

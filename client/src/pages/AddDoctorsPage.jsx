@@ -24,7 +24,7 @@ const emptyForm = {
 };
 
 const inputClass =
-  "mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500";
+  "mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm outline-none focus:border-blue-500";
 
 const idOf = (doctor) => doctor?._id || doctor?.id;
 
@@ -289,7 +289,7 @@ export default function AddDoctorsPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-8">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-8">
       <div className="mx-auto max-w-5xl space-y-6">
         <Link
           to={
@@ -297,7 +297,7 @@ export default function AddDoctorsPage() {
               ? `/clinics/${clinicId}/setup`
               : `/dashboard/clinic/${clinicId}`
           }
-          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
         >
           <ArrowLeft size={17} />
           {clinic?.status === "draft"
@@ -307,10 +307,10 @@ export default function AddDoctorsPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               Manage Doctors
             </h1>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               {clinic?.name} · {activeCount} active doctors
             </p>
           </div>
@@ -330,7 +330,7 @@ export default function AddDoctorsPage() {
         {error && (
           <p
             role="alert"
-            className="rounded-xl bg-red-50 p-4 text-sm text-red-700"
+            className="rounded-xl bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
           >
             {error}
           </p>
@@ -339,7 +339,7 @@ export default function AddDoctorsPage() {
         {success && (
           <p
             role="status"
-            className="flex items-center gap-2 rounded-xl bg-green-50 p-4 text-sm text-green-700"
+            className="flex items-center gap-2 rounded-xl bg-green-50 dark:bg-green-950/40 p-4 text-sm text-green-700 dark:text-green-300"
           >
             <CheckCircle2 size={18} />
             {success}
@@ -347,7 +347,7 @@ export default function AddDoctorsPage() {
         )}
 
         {showForm && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-7">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-bold">
                 {editingId ? "Edit Doctor" : "Add Doctor"}
@@ -358,15 +358,15 @@ export default function AddDoctorsPage() {
                 onClick={resetForm}
                 disabled={saving}
                 aria-label="Close form"
-                className="rounded-lg p-2 hover:bg-slate-100"
+                className="rounded-lg p-2 hover:bg-slate-100 hover:dark:bg-slate-800"
               >
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSave} className="space-y-5">
-              <div className="flex flex-wrap items-center gap-5 rounded-xl bg-slate-50 p-4">
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white">
+              <div className="flex flex-wrap items-center gap-5 rounded-xl bg-slate-50 dark:bg-slate-950 p-4">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-white dark:bg-slate-900">
                   {photoPreview || existingPhoto ? (
                     <img
                       src={photoPreview || existingPhoto}
@@ -376,7 +376,7 @@ export default function AddDoctorsPage() {
                   ) : (
                     <UserRound
                       size={38}
-                      className="text-slate-400"
+                      className="text-slate-400 dark:text-slate-400"
                     />
                   )}
                 </div>
@@ -385,7 +385,7 @@ export default function AddDoctorsPage() {
                   <p className="font-semibold">
                     Doctor Profile Photo
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     JPG, PNG or WebP · Maximum 3 MB
                   </p>
 
@@ -402,7 +402,7 @@ export default function AddDoctorsPage() {
                     onClick={() =>
                       fileInputRef.current?.click()
                     }
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold"
                   >
                     <Camera size={17} />
                     {photoPreview || existingPhoto
@@ -414,7 +414,7 @@ export default function AddDoctorsPage() {
                     <button
                       type="button"
                       onClick={() => setPhotoFile(null)}
-                      className="ml-3 text-sm text-red-600"
+                      className="ml-3 text-sm text-red-600 dark:text-red-300"
                     >
                       Cancel selection
                     </button>
@@ -470,7 +470,7 @@ export default function AddDoctorsPage() {
                     placeholder="MBBS, MD"
                     className={inputClass}
                   />
-                  <span className="mt-1 block text-xs font-normal text-slate-500">
+                  <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
                     Separate qualifications with commas.
                   </span>
                 </label>
@@ -516,7 +516,7 @@ export default function AddDoctorsPage() {
                   type="button"
                   disabled={saving}
                   onClick={resetForm}
-                  className="rounded-xl border border-slate-200 px-5 py-3 font-semibold"
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 px-5 py-3 font-semibold"
                 >
                   Cancel
                 </button>
@@ -543,10 +543,10 @@ export default function AddDoctorsPage() {
           {doctors.map((doctor) => (
             <article
               key={idOf(doctor)}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+              className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm"
             >
               <div className="flex items-start gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-50">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-50 dark:bg-blue-950/40">
                   {doctor.photoUrl ? (
                     <img
                       src={doctor.photoUrl}
@@ -562,17 +562,17 @@ export default function AddDoctorsPage() {
                 </div>
 
                 <div className="min-w-0">
-                  <h3 className="font-bold text-slate-900">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100">
                     {doctor.name}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {doctor.specialization || "Doctor"}
                   </p>
                   <span
                     className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${
                       doctor.isActive
-                        ? "bg-green-50 text-green-700"
-                        : "bg-slate-100 text-slate-600"
+                        ? "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     {doctor.isActive ? "Active" : "Inactive"}
@@ -581,16 +581,16 @@ export default function AddDoctorsPage() {
               </div>
 
               {doctor.qualifications?.length > 0 && (
-                <p className="mt-4 text-sm text-slate-500">
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
                   {doctor.qualifications.join(", ")}
                 </p>
               )}
 
-              <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
+              <div className="mt-5 flex gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
                 <button
                   type="button"
                   onClick={() => openEdit(doctor)}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-sm font-semibold text-blue-700 dark:text-blue-300"
                 >
                   <Pencil size={15} />
                   Edit
@@ -600,7 +600,7 @@ export default function AddDoctorsPage() {
                   type="button"
                   disabled={busyDoctorId === idOf(doctor)}
                   onClick={() => toggleStatus(doctor)}
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                  className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold disabled:opacity-50"
                 >
                   {busyDoctorId === idOf(doctor)
                     ? "Updating..."
@@ -613,7 +613,7 @@ export default function AddDoctorsPage() {
           ))}
 
           {!doctors.length && (
-            <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 sm:col-span-2">
+            <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-8 text-center text-slate-500 dark:text-slate-400 sm:col-span-2">
               No doctors yet. Add your first doctor.
             </div>
           )}
@@ -638,7 +638,7 @@ export default function AddDoctorsPage() {
         {clinic?.status !== "draft" && (
           <Link
             to={`/dashboard/clinic/${clinicId}`}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
           >
             <ArrowLeft size={17} />
             Return to Dashboard

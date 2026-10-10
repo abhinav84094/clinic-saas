@@ -238,17 +238,17 @@ export default function DoctorAvailabilityModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="availability-dialog-title"
-        className="flex h-full w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl"
+        className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-slate-900 shadow-2xl sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl"
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 px-5 py-4">
           <div>
             <h2
               id="availability-dialog-title"
-              className="text-lg font-bold text-slate-900"
+              className="text-lg font-bold text-slate-900 dark:text-slate-100"
             >
               Appointment Availability
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Check available times and contact the clinic
             </p>
           </div>
@@ -258,15 +258,15 @@ export default function DoctorAvailabilityModal({
             type="button"
             onClick={onClose}
             aria-label="Close appointment popup"
-            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+            className="rounded-lg p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-slate-800"
           >
             <X size={21} />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-          <div className="flex items-center gap-4 rounded-xl bg-blue-50 p-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
+          <div className="flex items-center gap-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 p-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white dark:bg-slate-900">
               {doctor.photoUrl ? (
                 <img
                   src={doctor.photoUrl}
@@ -276,21 +276,21 @@ export default function DoctorAvailabilityModal({
               ) : (
                 <UserRound
                   size={30}
-                  className="text-slate-500"
+                  className="text-slate-500 dark:text-slate-400"
                 />
               )}
             </div>
 
             <div className="min-w-0">
-              <h3 className="font-bold text-slate-900">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100">
                 {doctor.name}
               </h3>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
                 {doctor.specialization || "Doctor"}
               </p>
 
               {doctor.qualifications?.length > 0 && (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {doctor.qualifications.join(", ")}
                 </p>
               )}
@@ -300,14 +300,14 @@ export default function DoctorAvailabilityModal({
           {offerings.length ? (
             <>
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-semibold text-slate-700">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
                   Select Service
                   <select
                     value={offeringId}
                     onChange={(event) =>
                       setOfferingId(event.target.value)
                     }
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 outline-none focus:border-blue-500"
+                    className="mt-2 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-3 outline-none focus:border-blue-500"
                   >
                     {offerings.map((item) => (
                       <option
@@ -320,7 +320,7 @@ export default function DoctorAvailabilityModal({
                   </select>
                 </label>
 
-                <label className="block text-sm font-semibold text-slate-700">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
                   Select Date
                   <input
                     type="date"
@@ -329,13 +329,13 @@ export default function DoctorAvailabilityModal({
                     onChange={(event) =>
                       setDate(event.target.value)
                     }
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 outline-none focus:border-blue-500"
+                    className="mt-2 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-3 outline-none focus:border-blue-500"
                   />
                 </label>
               </div>
 
               {selectedOffering && (
-                <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
+                <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600 dark:text-slate-300">
                   <span className="inline-flex items-center gap-1">
                     <Stethoscope size={16} />
                     ₹{selectedOffering.fee}
@@ -347,16 +347,16 @@ export default function DoctorAvailabilityModal({
                 </div>
               )}
 
-              <h4 className="mt-7 flex items-center gap-2 font-bold text-slate-900">
+              <h4 className="mt-7 flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
                 <CalendarDays
                   size={19}
-                  className="text-blue-600"
+                  className="text-blue-600 dark:text-blue-300"
                 />
                 Available Time Slots
               </h4>
 
               {loading && (
-                <p className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+                <p className="mt-4 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                   <LoaderCircle
                     size={17}
                     className="animate-spin"
@@ -368,7 +368,7 @@ export default function DoctorAvailabilityModal({
               {error && (
                 <p
                   role="alert"
-                  className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+                  className="mt-4 rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300"
                 >
                   {error}
                 </p>
@@ -390,14 +390,14 @@ export default function DoctorAvailabilityModal({
                         className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                           selectedSlot?.startAt === slot.startAt
                             ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-blue-400"
+                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-blue-400"
                         }`}
                       >
                         {formatTime(slot.startTime)}
                       </button>
                     ))
                   ) : (
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       No available slots for this date.
                       Try another date.
                     </p>
@@ -406,7 +406,7 @@ export default function DoctorAvailabilityModal({
               )}
 
               {selectedSlot && (
-                <p className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                <p className="mt-4 rounded-lg bg-blue-50 dark:bg-blue-950/40 p-3 text-sm text-blue-900 dark:text-blue-300">
                   Preferred time:{" "}
                   <strong>
                     {formatTime(selectedSlot.startTime)}
@@ -415,20 +415,20 @@ export default function DoctorAvailabilityModal({
               )}
             </>
           ) : (
-            <p className="mt-5 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="mt-5 rounded-lg bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-900 dark:text-amber-300">
               This doctor currently has no active services.
               Please contact the clinic directly.
             </p>
           )}
 
-          <p className="mt-6 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+          <p className="mt-6 rounded-xl bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-600 dark:text-slate-300">
             Online booking is not currently available.
             Contact the clinic to confirm an appointment.
             Selecting a slot here does not reserve it.
           </p>
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4">
+        <div className="shrink-0 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row">
             {whatsapp && (
               <a
@@ -453,7 +453,7 @@ export default function DoctorAvailabilityModal({
             )}
 
             {!whatsapp && !phone && (
-              <p className="w-full text-center text-sm text-slate-500">
+              <p className="w-full text-center text-sm text-slate-500 dark:text-slate-400">
                 Contact details are not available yet.
               </p>
             )}

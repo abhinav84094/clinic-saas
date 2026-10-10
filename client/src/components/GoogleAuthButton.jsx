@@ -1,12 +1,26 @@
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "../services/api";
+import { useTheme } from "../theme/useTheme";
 
 export default function GoogleAuthButton({
   onLogin,
   onPasswordRequired,
 }) {
+  const containerRef = useRef(null);
+  const [buttonWidth, setButtonWidth] = useState(240);
+  const theme = useTheme();
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(entries => {
+      const width = Math.floor(entries[0].contentRect.width);
+      if (width > 0) setButtonWidth(Math.min(320, width));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -68,11 +82,11 @@ export default function GoogleAuthButton({
 
   return (
     <div className="w-full space-y-3">
-      <div className="flex min-h-11 items-center justify-center">
+      <div ref={containerRef} className="flex min-h-11 w-full min-w-0 items-center justify-center">
         {loading ? (
           <p
             role="status"
-            className="text-sm text-slate-500"
+            className="text-sm text-slate-500 dark:text-slate-400"
           >
             Signing in with Google...
           </p>
@@ -82,10 +96,10 @@ export default function GoogleAuthButton({
             onError={() =>
               setError("Google sign-in failed. Please try again.")
             }
-            theme="outline"
+            theme={theme === "dark" ? "filled_black" : "outline"}
             size="large"
             shape="rectangular"
-            width="320"
+            width={String(buttonWidth)}
           />
         )}
       </div>
@@ -93,7 +107,7 @@ export default function GoogleAuthButton({
       {error && (
         <p
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300"
         >
           {error}
         </p>

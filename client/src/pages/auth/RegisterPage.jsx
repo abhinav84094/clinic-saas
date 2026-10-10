@@ -143,7 +143,7 @@ export default function RegisterPage() {
   };
 
   const inputClass =
-    "block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60";
+    "block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 pl-10 pr-12 text-base text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60";
 
   const iconClass =
     "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400";
@@ -152,8 +152,8 @@ export default function RegisterPage() {
     "absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500";
 
   return (
-    <main className="flex min-h-screen min-h-dvh w-full min-w-0 items-start justify-center overflow-x-hidden bg-slate-50 px-3 py-5 sm:items-center sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      <div className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-slate-200 bg-white px-4 py-6 shadow-sm min-[375px]:px-5 sm:px-8 sm:py-8">
+    <main className="flex min-h-screen min-h-dvh w-full min-w-0 items-start justify-center overflow-x-hidden bg-slate-50 dark:bg-slate-950 px-3 py-5 sm:items-center sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <div className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-6 shadow-sm min-[375px]:px-5 sm:px-8 sm:py-8">
         <div className="mb-6 text-center sm:mb-7">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white sm:h-14 sm:w-14">
             <Stethoscope
@@ -163,13 +163,13 @@ export default function RegisterPage() {
             />
           </div>
 
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 min-[375px]:text-2xl sm:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 min-[375px]:text-2xl sm:text-3xl">
             {isGoogleRegistration
               ? "Complete Registration"
               : "Create Your Account"}
           </h1>
 
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+          <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
             {isGoogleRegistration
               ? "Set a password for your Google account"
               : "Start managing your clinic in one place"}
@@ -183,7 +183,7 @@ export default function RegisterPage() {
           <div className="w-full min-w-0">
             <label
               htmlFor="name"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
             >
               Full Name
             </label>
@@ -214,7 +214,7 @@ export default function RegisterPage() {
           <div className="w-full min-w-0">
             <label
               htmlFor="email"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
             >
               Email Address
             </label>
@@ -244,7 +244,7 @@ export default function RegisterPage() {
           <div className="w-full min-w-0">
             <label
               htmlFor="password"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
             >
               Password
             </label>
@@ -293,7 +293,7 @@ export default function RegisterPage() {
           <div className="w-full min-w-0">
             <label
               htmlFor="confirmPassword"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
             >
               Confirm Password
             </label>
@@ -346,7 +346,7 @@ export default function RegisterPage() {
           {error && (
             <div
               role="alert"
-              className="flex min-w-0 items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              className="flex min-w-0 items-start gap-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300"
             >
               <AlertCircle
                 size={18}
@@ -390,11 +390,11 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="mt-5 break-words text-center text-sm leading-relaxed text-slate-500 sm:mt-6">
+        <p className="mt-5 break-words text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400 sm:mt-6">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="font-semibold text-blue-600 hover:underline focus-visible:outline-2 focus-visible:outline-blue-500"
+            className="font-semibold text-blue-600 dark:text-blue-300 hover:underline focus-visible:outline-2 focus-visible:outline-blue-500"
           >
             Sign In
           </Link>

@@ -132,26 +132,26 @@ export default function AppointmentBooking({
   return (
     <section
       id="book-appointment"
-      className="scroll-mt-6 bg-blue-50 px-5 py-14 sm:px-8"
+      className="scroll-mt-6 bg-blue-50 dark:bg-blue-950/40 px-5 py-14 sm:px-8"
     >
-      <div className="mx-auto max-w-4xl rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+      <div className="mx-auto max-w-4xl rounded-2xl border border-blue-100 dark:border-blue-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
         <h2 className="flex items-center gap-2 text-2xl font-bold">
-          <CalendarDays className="text-blue-600" />
+          <CalendarDays className="text-blue-600 dark:text-blue-300" />
           Appointment Availability
         </h2>
 
         {!selectedDoctorId ? (
-          <p className="mt-4 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
             Select a doctor above to check availability.
           </p>
         ) : doctorOfferings.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
             No active services are available for this doctor.
             Please contact the clinic.
           </p>
         ) : (
           <>
-            <p className="mt-3 text-sm text-slate-600">
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
               Selected doctor:{" "}
               <strong>{doctorOfferings[0].doctorName}</strong>
             </p>
@@ -164,7 +164,7 @@ export default function AppointmentBooking({
                   onChange={(e) =>
                     setOfferingId(e.target.value)
                   }
-                  className="mt-2 w-full rounded-lg border border-slate-300 p-3"
+                  className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-600 p-3"
                 >
                   {doctorOfferings.map((item) => (
                     <option key={item.id} value={item.id}>
@@ -181,7 +181,7 @@ export default function AppointmentBooking({
                   min={getToday(timezone)}
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-slate-300 p-3"
+                  className="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-600 p-3"
                 />
               </label>
             </div>
@@ -191,7 +191,7 @@ export default function AppointmentBooking({
             </h3>
 
             {loading && (
-              <p className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+              <p className="mt-3 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <LoaderCircle
                   className="animate-spin"
                   size={17}
@@ -203,7 +203,7 @@ export default function AppointmentBooking({
             {error && (
               <p
                 role="alert"
-                className="mt-3 text-sm text-red-600"
+                className="mt-3 text-sm text-red-600 dark:text-red-300"
               >
                 {error}
               </p>
@@ -222,14 +222,14 @@ export default function AppointmentBooking({
                       className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
                         selectedSlot?.startAt === slot.startAt
                           ? "border-blue-600 bg-blue-600 text-white"
-                          : "border-slate-200 text-slate-700"
+                          : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
                       }`}
                     >
                       {slot.startTime}
                     </button>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     No available slots for this date.
                   </p>
                 )}
@@ -237,14 +237,14 @@ export default function AppointmentBooking({
             )}
 
             {selectedSlot && (
-              <p className="mt-4 text-sm text-slate-600">
+              <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
                 Preferred time:{" "}
                 <strong>{selectedSlot.startTime}</strong>
               </p>
             )}
 
             {!onlineBookingAvailable && (
-              <p className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="mt-5 rounded-lg bg-amber-50 dark:bg-amber-950/40 p-3 text-sm text-amber-900 dark:text-amber-300">
                 Online booking is currently unavailable.
                 Contact the clinic to confirm your appointment.
                 Selecting a time here does not reserve it.
@@ -276,7 +276,7 @@ export default function AppointmentBooking({
             </div>
 
             {onlineBookingAvailable && (
-              <p className="mt-4 text-sm text-slate-500">
+              <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 Secure online payment and confirmation will
                 become available once the booking payment
                 integration is completed.

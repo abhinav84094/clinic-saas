@@ -112,25 +112,25 @@ export default function VerifyEmailPage() {
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-6 sm:px-6 sm:py-10">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+    <main className="flex min-h-dvh items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-8">
         <div className="mb-7 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white">
             <MailCheck size={28} aria-hidden="true" />
           </div>
 
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
             Verify Your Email
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Enter the verification code sent to your email address.
           </p>
         </div>
 
         <form onSubmit={handleVerify} className="space-y-5">
           <div>
-            <label htmlFor="verificationEmail" className="mb-2 block text-sm font-medium text-slate-700">
+            <label htmlFor="verificationEmail" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
               Email Address
             </label>
             <input
@@ -146,12 +146,12 @@ export default function VerifyEmailPage() {
               placeholder="you@example.com"
               required
               disabled={loading || resending}
-              className="min-h-12 w-full rounded-xl border border-slate-200 px-4 py-3 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-sm"
+              className="min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-sm"
             />
           </div>
 
           <div>
-            <label htmlFor="verificationOtp" className="mb-2 block text-sm font-medium text-slate-700">
+            <label htmlFor="verificationOtp" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
               Verification Code
             </label>
             <input
@@ -169,19 +169,19 @@ export default function VerifyEmailPage() {
               placeholder="Enter 6-digit code"
               required
               disabled={loading || resending}
-              className="min-h-12 w-full rounded-xl border border-slate-200 px-4 py-3 text-center text-xl font-semibold tracking-[0.3em] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+              className="min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-center text-xl font-semibold tracking-[0.3em] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
             />
           </div>
 
           {error && (
-            <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300">
               <AlertCircle size={18} className="mt-0.5 shrink-0" />
               <span className="min-w-0 break-words">{error}</span>
             </div>
           )}
 
           {success && (
-            <div role="status" className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+            <div role="status" className="flex items-start gap-2 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-700 dark:text-green-300">
               <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
               <span className="min-w-0 break-words">{success}</span>
             </div>
@@ -207,7 +207,7 @@ export default function VerifyEmailPage() {
         </form>
 
         <div className="mt-5 text-center">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Didn't receive the code?
           </p>
 
@@ -215,7 +215,7 @@ export default function VerifyEmailPage() {
             type="button"
             onClick={handleResend}
             disabled={resending || loading || secondsRemaining > 0}
-            className="mt-2 min-h-11 text-sm font-semibold text-blue-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
+            className="mt-2 min-h-11 text-sm font-semibold text-blue-600 dark:text-blue-300 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 dark:text-slate-400"
           >
             {resending
               ? "Sending..."
@@ -225,8 +225,8 @@ export default function VerifyEmailPage() {
           </button>
         </div>
 
-        <div className="mt-5 border-t border-slate-100 pt-5 text-center">
-          <Link to="/login" className="text-sm font-semibold text-blue-600 hover:underline">
+        <div className="mt-5 border-t border-slate-100 dark:border-slate-800 pt-5 text-center">
+          <Link to="/login" className="text-sm font-semibold text-blue-600 dark:text-blue-300 hover:underline">
             Back to Sign In
           </Link>
         </div>

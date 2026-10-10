@@ -28,7 +28,7 @@ const initialForm = {
 };
 
 const inputClass =
-  "mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100";
+  "mt-2 min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 dark:disabled:bg-slate-800";
 
 export default function ClinicSetupPage() {
   const { clinicId } = useParams();
@@ -187,7 +187,7 @@ export default function ClinicSetupPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-dvh items-center justify-center gap-2 text-slate-600">
+      <main className="flex min-h-dvh items-center justify-center gap-2 text-slate-600 dark:text-slate-300">
         <LoaderCircle
           className="animate-spin"
           size={20}
@@ -198,37 +198,37 @@ export default function ClinicSetupPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-6 sm:px-6 sm:py-10">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-2xl">
         <Link
           to="/my-clinics"
-          className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-blue-600"
+          className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-300"
         >
           <ArrowLeft size={17} />
           My Clinics
         </Link>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-8">
           <div className="mb-6">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <span className="rounded-xl bg-blue-50 p-3 text-blue-600">
+              <span className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3 text-blue-600 dark:text-blue-300">
                 <Building2 size={23} />
               </span>
 
-              <span className="text-xs font-semibold text-blue-600">
+              <span className="text-xs font-semibold text-blue-600 dark:text-blue-300">
                 STEP 1 OF 6
               </span>
             </div>
 
-            <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
               <div className="h-full w-1/6 rounded-full bg-blue-600" />
             </div>
 
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               Clinic Details
             </h1>
 
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               Enter your clinic information.
               Next, you'll add the doctors who
               work at your clinic.
@@ -236,7 +236,7 @@ export default function ClinicSetupPage() {
           </div>
 
           {status !== "draft" && (
-            <div className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+            <div className="mb-5 rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
               This clinic is currently{" "}
               <strong>{status}</strong>.
               This onboarding form is intended
@@ -252,7 +252,7 @@ export default function ClinicSetupPage() {
               ([name, label, type, required]) => (
                 <label
                   key={name}
-                  className="block min-w-0 text-sm font-medium text-slate-700"
+                  className="block min-w-0 text-sm font-medium text-slate-700 dark:text-slate-200"
                 >
                   {label}
 
@@ -281,7 +281,7 @@ export default function ClinicSetupPage() {
               )
             )}
 
-            <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 sm:col-span-2">
               Clinic Description
 
               <textarea
@@ -296,7 +296,7 @@ export default function ClinicSetupPage() {
             </label>
 
             {!editing && (
-              <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 sm:col-span-2">
                 Billing Preference
 
                 <select
@@ -315,7 +315,7 @@ export default function ClinicSetupPage() {
                   </option>
                 </select>
 
-                <span className="mt-1 block text-xs font-normal text-slate-500">
+                <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
                   No payment is collected at
                   this step.
                 </span>
@@ -325,7 +325,7 @@ export default function ClinicSetupPage() {
             {error && (
               <p
                 role="alert"
-                className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:col-span-2"
+                className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300 sm:col-span-2"
               >
                 {error}
               </p>
@@ -357,7 +357,7 @@ export default function ClinicSetupPage() {
             {status !== "draft" && editing && (
               <Link
                 to={`/dashboard/clinic/${clinicId}`}
-                className="text-center font-semibold text-blue-600 sm:col-span-2"
+                className="text-center font-semibold text-blue-600 dark:text-blue-300 sm:col-span-2"
               >
                 Return to Dashboard
               </Link>

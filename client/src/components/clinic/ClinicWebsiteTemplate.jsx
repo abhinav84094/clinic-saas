@@ -48,10 +48,10 @@ export default function ClinicWebsiteTemplate({
 
   return (
     <div
-      className="min-w-0 overflow-hidden rounded-xl bg-white text-slate-900"
+      className="min-w-0 overflow-hidden rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
       style={{ "--clinic-primary": color }}
     >
-      <header className="border-b border-slate-100 bg-white">
+      <header className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             {clinic?.branding?.logoUrl ? (
@@ -75,7 +75,7 @@ export default function ClinicWebsiteTemplate({
           </div>
 
           <nav
-            className="flex flex-wrap gap-4 text-sm font-medium text-slate-600"
+            className="flex flex-wrap gap-4 text-sm font-medium text-slate-600 dark:text-slate-300"
             aria-label="Clinic sections"
           >
             <a href="#about">About</a>
@@ -86,7 +86,7 @@ export default function ClinicWebsiteTemplate({
         </div>
       </header>
 
-      <section className="bg-slate-50 px-5 py-16 sm:px-8 sm:py-24">
+      <section className="bg-slate-50 dark:bg-slate-950 px-5 py-16 sm:px-8 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <p
             className="mb-3 text-sm font-bold uppercase tracking-widest"
@@ -99,7 +99,7 @@ export default function ClinicWebsiteTemplate({
             Compassionate care, closer to you.
           </h1>
 
-          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600">
+          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300">
             {clinic?.description ||
               "Meet our doctors, explore our services and get in touch with our clinic."}
           </p>
@@ -118,7 +118,7 @@ export default function ClinicWebsiteTemplate({
 
             <a
               href="#services"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 font-semibold text-slate-700 dark:text-slate-200"
             >
               <CalendarDays size={17} />
               View Services
@@ -135,7 +135,7 @@ export default function ClinicWebsiteTemplate({
           About Our Clinic
         </h2>
 
-        <p className="mt-3 max-w-3xl leading-7 text-slate-600">
+        <p className="mt-3 max-w-3xl leading-7 text-slate-600 dark:text-slate-300">
           {clinic?.description ||
             "We are here to help you find the care you need."}
         </p>
@@ -143,7 +143,7 @@ export default function ClinicWebsiteTemplate({
 
       <section
         id="doctors"
-        className="bg-slate-50 px-5 py-12 sm:px-8"
+        className="bg-slate-50 dark:bg-slate-950 px-5 py-12 sm:px-8"
       >
         <div className="mx-auto max-w-6xl">
           <h2 className="text-2xl font-bold">
@@ -155,9 +155,9 @@ export default function ClinicWebsiteTemplate({
               activeDoctors.map((doctor) => (
                 <article
                   key={getId(doctor)}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                  className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5"
                 >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-slate-100">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     {doctor.photoUrl ? (
                       <img
                         src={doctor.photoUrl}
@@ -167,7 +167,7 @@ export default function ClinicWebsiteTemplate({
                     ) : (
                       <UserRound
                         size={25}
-                        className="text-slate-500"
+                        className="text-slate-500 dark:text-slate-400"
                       />
                     )}
                   </div>
@@ -176,18 +176,18 @@ export default function ClinicWebsiteTemplate({
                     {doctor.name}
                   </h3>
 
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                     {doctor.specialization || "Doctor"}
                   </p>
 
                   {doctor.qualifications?.length > 0 && (
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                       {doctor.qualifications.join(", ")}
                     </p>
                   )}
 
                   {doctor.bio && (
-                    <p className="mt-3 text-sm text-slate-600">
+                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
                       {doctor.bio}
                     </p>
                   )}
@@ -206,7 +206,7 @@ export default function ClinicWebsiteTemplate({
                 </article>
               ))
             ) : (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Doctor profiles will appear here.
               </p>
             )}
@@ -227,10 +227,10 @@ export default function ClinicWebsiteTemplate({
             activeServices.map((service) => (
               <article
                 key={getId(service)}
-                className="rounded-2xl border border-slate-200 p-5"
+                className="rounded-2xl border border-slate-200 dark:border-slate-700 p-5"
               >
                 <div
-                  className="mb-3 inline-flex rounded-lg bg-slate-100 p-2"
+                  className="mb-3 inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-2"
                   style={{ color }}
                 >
                   <Stethoscope size={20} />
@@ -241,13 +241,13 @@ export default function ClinicWebsiteTemplate({
                 </h3>
 
                 {service.description && (
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                     {service.description}
                   </p>
                 )}
 
                 {service.doctors?.length > 0 && (
-                  <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+                  <div className="mt-4 space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                     {service.doctors.map((doctor) => (
                       <div
                         key={getId(
@@ -267,7 +267,7 @@ export default function ClinicWebsiteTemplate({
               </article>
             ))
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Services will appear here.
             </p>
           )}
@@ -276,14 +276,14 @@ export default function ClinicWebsiteTemplate({
 
       <section
         id="contact"
-        className="bg-slate-50 px-5 py-12 sm:px-8"
+        className="bg-slate-50 dark:bg-slate-950 px-5 py-12 sm:px-8"
       >
         <div className="mx-auto max-w-6xl">
           <h2 className="text-2xl font-bold">
             Contact & Location
           </h2>
 
-          <div className="mt-5 grid gap-3 text-sm text-slate-700">
+          <div className="mt-5 grid gap-3 text-sm text-slate-700 dark:text-slate-200">
             {contact.phone && (
               <a
                 href={`tel:${contact.phone}`}
@@ -314,13 +314,13 @@ export default function ClinicWebsiteTemplate({
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 px-5 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 dark:border-slate-700 px-5 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
         © {new Date().getFullYear()}{" "}
         {clinic?.name || "Clinic"}. All rights reserved.
       </footer>
 
       {preview && (
-        <div className="border-t border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-800">
+        <div className="border-t border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-center text-sm font-medium text-amber-800 dark:text-amber-300">
           Preview only — your clinic is not published yet.
         </div>
       )}

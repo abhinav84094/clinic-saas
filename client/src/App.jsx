@@ -38,6 +38,7 @@ import ServicesManagementPage from "./pages/dashboard/ServicesManagementPage";
 import ClinicProfilePage from "./pages/dashboard/ClinicProfilePage";
 import WebsiteManagementPage from "./pages/dashboard/WebsiteManagementPage";
 import RenewPlanPage from "./pages/dashboard/RenewPlanPage";
+import SubscriptionPage from "./pages/dashboard/SubscriptionPage"
 
 function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -83,13 +84,13 @@ function GooglePasswordSetupPage() {
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-6 sm:px-6">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-        <h1 className="text-center text-2xl font-bold text-slate-900">
+    <main className="flex min-h-dvh items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-8">
+        <h1 className="text-center text-2xl font-bold text-slate-900 dark:text-slate-100">
           Complete Your Registration
         </h1>
 
-        <p className="mb-6 mt-3 text-center text-sm text-slate-500">
+        <p className="mb-6 mt-3 text-center text-sm text-slate-500 dark:text-slate-400">
           Set a password to finish creating your account.
         </p>
 
@@ -251,6 +252,12 @@ export default function App() {
               path="renew"
               element={<RenewPlanPage />}
             />
+
+            {/* Subscription Management */}
+            <Route
+              path="subscription"
+              element={<SubscriptionPage />}
+            />
           </Route>
 
           {/* Dashboard redirect */}
@@ -282,7 +289,7 @@ export default function App() {
 
               <a
                 href="/"
-                className="text-blue-600"
+                className="text-blue-600 dark:text-blue-300"
               >
                 Return Home
               </a>

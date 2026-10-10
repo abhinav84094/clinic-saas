@@ -64,7 +64,7 @@ export default function ClinicDashboardShell() {
   if (error || !clinic) {
     return (
       <main className="flex min-h-dvh items-center justify-center p-6">
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-red-600 dark:text-red-300">
           {error || "Clinic not found."}
         </p>
       </main>

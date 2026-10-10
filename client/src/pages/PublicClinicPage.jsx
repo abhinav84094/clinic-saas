@@ -87,7 +87,7 @@ export default function PublicClinicPage() {
 
   if (error || !data?.clinic) {
     return (
-      <main className="flex min-h-dvh items-center justify-center px-4 text-center text-slate-600">
+      <main className="flex min-h-dvh items-center justify-center px-4 text-center text-slate-600 dark:text-slate-300">
         {error || "Clinic not found."}
       </main>
     );

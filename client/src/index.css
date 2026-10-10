@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: Inter, system-ui, sans-serif;
   font-synthesis: none;
@@ -8,4 +10,23 @@
 body {
   margin: 0;
   min-width: 320px;
+}
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+body { background: #f8fafc; color: #0f172a; overflow-wrap: anywhere; }
+html.dark body { background: #020617; color: #e2e8f0; }
+#root { min-height: 100dvh; }
+:where(main, section, article, form, label) { min-width: 0; }
+:where(input, select, textarea) { min-width: 0; max-width: 100%; }
+:where(button, a) { touch-action: manipulation; }
+:where(svg) { flex-shrink: 0; }
+:where(input, textarea)::placeholder { color: #64748b; }
+html.dark :where(input, textarea)::placeholder { color: #94a3b8; }
+@media (max-width: 639px) {
+  /* Prevent mobile browsers zooming into small form text. */
+  :where(input, select, textarea) { font-size: 16px; }
+}
+/* Keep small icon/action buttons usable on touch screens. */
+@media (pointer: coarse) {
+  button { min-height: 44px; min-width: 44px; }
 }

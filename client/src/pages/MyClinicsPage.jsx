@@ -1,3 +1,4 @@
+import ThemeToggle from "../components/ThemeToggle";
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -171,25 +172,27 @@ export default function MyClinicsPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-6 sm:px-6 sm:py-10">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-6xl">
         <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
               My Clinics
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Welcome, {user?.name || "Owner"}.
               Choose a clinic or create a new one.
             </p>
           </div>
 
+          <div className="flex flex-wrap items-center gap-3">
+            <ThemeToggle />
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 hover:dark:bg-slate-800 disabled:opacity-60"
           >
             {loggingOut ? (
               <LoaderCircle
@@ -201,19 +204,20 @@ export default function MyClinicsPage() {
             )}
             Logout
           </button>
+          </div>
         </header>
 
         {error && (
           <p
             role="alert"
-            className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            className="mb-5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
           >
             {error}
           </p>
         )}
 
         {loading ? (
-          <p className="flex items-center gap-2 text-sm text-slate-500">
+          <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <LoaderCircle
               size={18}
               className="animate-spin"
@@ -222,10 +226,10 @@ export default function MyClinicsPage() {
           </p>
         ) : (
           <>
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
               Your Clinics
               {clinics.length > 0 && (
-                <span className="ml-2 text-slate-400">
+                <span className="ml-2 text-slate-400 dark:text-slate-400">
                   ({clinics.length})
                 </span>
               )}
@@ -282,9 +286,9 @@ export default function MyClinicsPage() {
                 return (
                   <article
                     key={clinicId}
-                    className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                    className="flex min-w-0 flex-col rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm"
                   >
-                    <div className="mb-4 flex h-20 items-center justify-center rounded-xl bg-blue-50">
+                    <div className="mb-4 flex h-20 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40">
                       {clinic.branding?.logoUrl ? (
                         <img
                           src={clinic.branding.logoUrl}
@@ -294,26 +298,26 @@ export default function MyClinicsPage() {
                       ) : (
                         <Building2
                           size={36}
-                          className="text-blue-600"
+                          className="text-blue-600 dark:text-blue-300"
                         />
                       )}
                     </div>
 
-                    <h3 className="break-words text-lg font-semibold text-slate-900">
+                    <h3 className="break-words text-lg font-semibold text-slate-900 dark:text-slate-100">
                       {clinic.name}
                     </h3>
 
-                    <p className="mt-1 break-all text-xs text-slate-500">
+                    <p className="mt-1 break-all text-xs text-slate-500 dark:text-slate-400">
                       /{clinic.slug}
                     </p>
 
                     <span
                       className={`mt-3 w-fit rounded-full px-3 py-1 text-xs font-medium ${
                         isExpired
-                          ? "bg-red-50 text-red-700"
+                          ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
                           : isActive
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-amber-50 text-amber-700"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+                            : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
                       }`}
                     >
                       {isExpired
@@ -326,7 +330,7 @@ export default function MyClinicsPage() {
                     </span>
 
                     {expiringSoon && (
-                      <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs text-amber-800 dark:text-amber-300">
                         <CalendarClock
                           size={16}
                           className="shrink-0"
@@ -345,14 +349,14 @@ export default function MyClinicsPage() {
                     )}
 
                     {isExpired && (
-                      <p className="mt-4 text-xs leading-5 text-red-600">
+                      <p className="mt-4 text-xs leading-5 text-red-600 dark:text-red-300">
                         Your subscription has expired.
                         Renew to restore clinic access.
                       </p>
                     )}
 
                     {subscriptionFailed && isActive && (
-                      <p className="mt-4 text-xs text-amber-700">
+                      <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">
                         Unable to verify subscription status.
                         Please refresh the page.
                       </p>
@@ -399,22 +403,22 @@ export default function MyClinicsPage() {
 
               <Link
                 to="/clinics/new"
-                className="flex min-h-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-white p-6 text-center transition hover:border-blue-500 hover:bg-blue-50"
+                className="flex min-h-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 p-6 text-center transition hover:border-blue-500 hover:bg-blue-50 hover:dark:bg-blue-950/40"
               >
-                <span className="mb-4 rounded-full bg-blue-50 p-4 text-blue-600">
+                <span className="mb-4 rounded-full bg-blue-50 dark:bg-blue-950/40 p-4 text-blue-600 dark:text-blue-300">
                   <Plus size={28} />
                 </span>
 
-                <span className="text-lg font-semibold text-slate-900">
+                <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                   Publish Your Clinic Online
                 </span>
 
-                <span className="mt-2 text-sm text-slate-500">
+                <span className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                   Create a professional online presence
                   for your clinic.
                 </span>
 
-                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600">
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 dark:text-blue-300">
                   Get Started
                   <ArrowRight size={16} />
                 </span>
@@ -422,7 +426,7 @@ export default function MyClinicsPage() {
             </div>
 
             {clinics.length === 0 && (
-              <p className="mt-5 flex items-center gap-2 text-sm text-slate-500">
+              <p className="mt-5 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <Globe2 size={17} />
                 You haven't added a clinic yet.
                 Start with the card above.

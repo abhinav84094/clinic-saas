@@ -147,12 +147,12 @@ export default function SubscriptionSetupPage() {
 
       if (!payment?.orderId) {
         setOrderId("");
-        setNeedsResolution(Boolean(data?.requiresReview));
+        setNeedsResolution(Boolean(data?.requiresReview || data?.processing));
 
         setNotice(
           data?.requiresReview
             ? "A previous payment needs review. Please contact support."
-            : ""
+            : data?.processing ? data.message : ""
         );
         return;
       }
@@ -533,7 +533,7 @@ export default function SubscriptionSetupPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-dvh items-center justify-center gap-3 text-slate-600">
+      <main className="flex min-h-dvh items-center justify-center gap-3 text-slate-600 dark:text-slate-300">
         <LoaderCircle
           size={20}
           className="animate-spin"
@@ -548,7 +548,7 @@ export default function SubscriptionSetupPage() {
       <main className="mx-auto max-w-xl px-4 py-16">
         <p
           role="alert"
-          className="rounded-xl bg-red-50 p-5 text-red-700"
+          className="rounded-xl bg-red-50 dark:bg-red-950/40 p-5 text-red-700 dark:text-red-300"
         >
           {error || "Subscription could not be loaded."}
         </p>
@@ -559,30 +559,30 @@ export default function SubscriptionSetupPage() {
   const yearly = subscription.billingCycle === "yearly";
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-8 sm:px-6 sm:py-12">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-5xl">
         <Link
           to={`${base}/website/setup`}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
         >
           <ArrowLeft size={17} />
           Back to Website Preview
         </Link>
 
         <div className="mt-7">
-          <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
+          <p className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300">
             Step 5 of 6
           </p>
 
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div className="h-full w-5/6 rounded-full bg-blue-600" />
           </div>
 
-          <h1 className="mt-6 text-3xl font-extrabold text-slate-900">
+          <h1 className="mt-6 text-3xl font-extrabold text-slate-900 dark:text-slate-100">
             Choose Your Billing Cycle
           </h1>
 
-          <p className="mt-2 text-slate-600">
+          <p className="mt-2 text-slate-600 dark:text-slate-300">
             Activate the Basic subscription for{" "}
             <strong>{clinic.name}</strong>.
           </p>
@@ -591,7 +591,7 @@ export default function SubscriptionSetupPage() {
         {error && (
           <div
             role="alert"
-            className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            className="mt-6 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
           >
             {error}
           </div>
@@ -600,16 +600,16 @@ export default function SubscriptionSetupPage() {
         {notice && (
           <div
             role="status"
-            className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800"
+            className="mt-6 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-800 dark:text-blue-300"
           >
             {notice}
           </div>
         )}
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-7">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3 text-blue-600 dark:text-blue-300">
                 <CreditCard size={23} />
               </div>
 
@@ -617,7 +617,7 @@ export default function SubscriptionSetupPage() {
                 <h2 className="text-xl font-bold">
                   Basic Plan
                 </h2>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   One plan, flexible billing
                 </p>
               </div>
@@ -637,8 +637,8 @@ export default function SubscriptionSetupPage() {
                     aria-pressed={selected}
                     className={`rounded-2xl border-2 p-5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
                       selected
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-slate-200 hover:border-blue-300"
+                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/40"
+                        : "border-slate-200 dark:border-slate-700 hover:border-blue-300"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -649,12 +649,12 @@ export default function SubscriptionSetupPage() {
                       {selected && (
                         <Check
                           size={19}
-                          className="text-blue-600"
+                          className="text-blue-600 dark:text-blue-300"
                         />
                       )}
                     </div>
 
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                       {cycle === "monthly"
                         ? "30-day subscription period"
                         : "365-day subscription period"}
@@ -665,7 +665,7 @@ export default function SubscriptionSetupPage() {
             </div>
 
             {saving && (
-              <p className="mt-4 flex items-center gap-2 text-sm text-blue-600">
+              <p className="mt-4 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300">
                 <LoaderCircle
                   size={16}
                   className="animate-spin"
@@ -674,8 +674,8 @@ export default function SubscriptionSetupPage() {
               </p>
             )}
 
-            <div className="mt-8 border-t border-slate-100 pt-6">
-              <h3 className="font-bold text-slate-900">
+            <div className="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100">
                 What's included
               </h3>
 
@@ -688,31 +688,30 @@ export default function SubscriptionSetupPage() {
                 ].map((feature) => (
                   <div
                     key={feature}
-                    className="flex items-start gap-3 text-sm text-slate-700"
+                    className="flex items-start gap-3 text-sm text-slate-700 dark:text-slate-200"
                   >
                     <Check
                       size={18}
-                      className="shrink-0 text-blue-600"
+                      className="shrink-0 text-blue-600 dark:text-blue-300"
                     />
                     {feature}
                   </div>
                 ))}
               </div>
 
-              <p className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
-                Online appointment bookings are not included
-                in the Basic plan.
+              <p className="mt-6 rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-900 dark:text-amber-300">
+                This is your clinic publicly deployment charge.
               </p>
             </div>
           </section>
 
-          <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <aside className="h-fit rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-7">
             <h2 className="text-lg font-bold">
               Order Summary
             </h2>
 
             <div className="mt-6 flex justify-between gap-4 text-sm">
-              <span className="text-slate-600">
+              <span className="text-slate-600 dark:text-slate-300">
                 Basic · {yearly ? "Yearly" : "Monthly"}
               </span>
 
@@ -721,7 +720,7 @@ export default function SubscriptionSetupPage() {
               </span>
             </div>
 
-            <div className="mt-6 border-t border-slate-200 pt-5">
+            <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-5">
               <div className="flex items-center justify-between gap-4">
                 <span className="font-semibold">
                   Total payable
@@ -732,7 +731,7 @@ export default function SubscriptionSetupPage() {
                 </span>
               </div>
 
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                 Amount confirmed by your server before
                 Razorpay Checkout.
               </p>
@@ -784,7 +783,7 @@ export default function SubscriptionSetupPage() {
             {needsResolution && !isActive && (
               <div
                 role="status"
-                className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                className="mt-5 flex gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-900 dark:text-amber-300"
               >
                 {checking ? (
                   <LoaderCircle
@@ -812,7 +811,7 @@ export default function SubscriptionSetupPage() {
               </div>
             )}
 
-            <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-slate-500">
+            <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
               <ShieldCheck
                 size={18}
                 className="shrink-0"

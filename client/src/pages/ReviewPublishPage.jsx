@@ -54,14 +54,14 @@ const formatPrice = (value) =>
 
 function Section({ icon: Icon, title, editTo, children }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-blue-50 p-3 text-blue-600">
+          <span className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3 text-blue-600 dark:text-blue-300">
             <Icon size={20} />
           </span>
 
-          <h2 className="text-lg font-bold text-slate-900">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             {title}
           </h2>
         </div>
@@ -69,7 +69,7 @@ function Section({ icon: Icon, title, editTo, children }) {
         {editTo && (
           <Link
             to={editTo}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 dark:text-blue-300 hover:text-blue-700 hover:dark:text-blue-300"
           >
             <Pencil size={15} />
             Edit
@@ -85,11 +85,11 @@ function Section({ icon: Icon, title, editTo, children }) {
 function Detail({ label, value }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-medium text-slate-500">
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
         {label}
       </p>
 
-      <p className="mt-1 break-words text-sm font-semibold text-slate-900">
+      <p className="mt-1 break-words text-sm font-semibold text-slate-900 dark:text-slate-100">
         {value || "Not provided"}
       </p>
     </div>
@@ -210,7 +210,7 @@ export default function ReviewPublishPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-dvh items-center justify-center gap-3 text-slate-600">
+      <main className="flex min-h-dvh items-center justify-center gap-3 text-slate-600 dark:text-slate-300">
         <LoaderCircle
           className="animate-spin"
           size={20}
@@ -225,7 +225,7 @@ export default function ReviewPublishPage() {
       <main className="mx-auto max-w-xl px-4 py-16">
         <div
           role="alert"
-          className="rounded-xl bg-red-50 p-5 text-red-700"
+          className="rounded-xl bg-red-50 dark:bg-red-950/40 p-5 text-red-700 dark:text-red-300"
         >
           {error || "Unable to load clinic review."}
         </div>
@@ -244,30 +244,30 @@ export default function ReviewPublishPage() {
     success || clinic.status === "active";
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-8 sm:px-6 sm:py-12">
+    <main className="min-h-dvh bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-5xl">
         <Link
           to={`${base}/subscription/setup`}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-300"
         >
           <ArrowLeft size={17} />
           Back to Subscription
         </Link>
 
         <div className="mt-7">
-          <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
+          <p className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300">
             Step 6 of 6
           </p>
 
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
             <div className="h-full w-full rounded-full bg-blue-600" />
           </div>
 
-          <h1 className="mt-6 text-3xl font-extrabold text-slate-900">
+          <h1 className="mt-6 text-3xl font-extrabold text-slate-900 dark:text-slate-100">
             Review & Publish
           </h1>
 
-          <p className="mt-2 text-slate-600">
+          <p className="mt-2 text-slate-600 dark:text-slate-300">
             Review your clinic information before making
             your website publicly available.
           </p>
@@ -276,7 +276,7 @@ export default function ReviewPublishPage() {
         {error && (
           <div
             role="alert"
-            className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            className="mt-6 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300"
           >
             {error}
           </div>
@@ -285,20 +285,20 @@ export default function ReviewPublishPage() {
         {published && (
           <div
             role="status"
-            className="mt-7 rounded-2xl border border-emerald-200 bg-emerald-50 p-6"
+            className="mt-7 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-6"
           >
             <div className="flex items-center gap-3">
               <CheckCircle2
                 size={28}
-                className="text-emerald-600"
+                className="text-emerald-600 dark:text-emerald-300"
               />
 
-              <h2 className="text-xl font-bold text-emerald-900">
+              <h2 className="text-xl font-bold text-emerald-900 dark:text-emerald-300">
                 Your Clinic Website Is Live!
               </h2>
             </div>
 
-            <p className="mt-3 text-sm text-emerald-800">
+            <p className="mt-3 text-sm text-emerald-800 dark:text-emerald-300">
               Your clinic has been published successfully.
             </p>
 
@@ -320,7 +320,7 @@ export default function ReviewPublishPage() {
                 onClick={() =>
                   navigate(`/dashboard/clinic/${clinicId}`)
                 }
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-5 py-3 text-sm font-semibold text-emerald-800"
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-emerald-800 dark:text-emerald-300"
               >
                 Go to Dashboard
                 <ArrowRight size={16} />
@@ -366,7 +366,7 @@ export default function ReviewPublishPage() {
               </div>
 
               {clinic.description && (
-                <p className="mt-5 text-sm leading-6 text-slate-600">
+                <p className="mt-5 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   {clinic.description}
                 </p>
               )}
@@ -382,7 +382,7 @@ export default function ReviewPublishPage() {
               }
             >
               {activeDoctors.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   No active doctors added.
                 </p>
               ) : (
@@ -390,13 +390,13 @@ export default function ReviewPublishPage() {
                   {activeDoctors.map((doctor) => (
                     <div
                       key={doctor._id || doctor.id}
-                      className="rounded-xl border border-slate-100 p-4"
+                      className="rounded-xl border border-slate-100 dark:border-slate-800 p-4"
                     >
-                      <p className="font-semibold text-slate-900">
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">
                         {doctor.name}
                       </p>
 
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         {doctor.specialization ||
                           "Specialization not provided"}
                       </p>
@@ -416,7 +416,7 @@ export default function ReviewPublishPage() {
               }
             >
               {activeServices.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   No active services added.
                 </p>
               ) : (
@@ -424,14 +424,14 @@ export default function ReviewPublishPage() {
                   {activeServices.map((service) => (
                     <div
                       key={service._id || service.id}
-                      className="rounded-xl border border-slate-100 p-4"
+                      className="rounded-xl border border-slate-100 dark:border-slate-800 p-4"
                     >
-                      <p className="font-semibold text-slate-900">
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">
                         {service.name}
                       </p>
 
                       {service.description && (
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                           {service.description}
                         </p>
                       )}
@@ -450,13 +450,13 @@ export default function ReviewPublishPage() {
                   : `${base}/website/setup`
               }
             >
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
                 Your clinic will use the predefined
                 responsive website template.
               </p>
 
               {publicUrl && (
-                <p className="mt-3 break-all rounded-xl bg-slate-50 p-3 font-mono text-sm text-blue-700">
+                <p className="mt-3 break-all rounded-xl bg-slate-50 dark:bg-slate-950 p-3 font-mono text-sm text-blue-700 dark:text-blue-300">
                   {publicUrl}
                 </p>
               )}
@@ -504,20 +504,20 @@ export default function ReviewPublishPage() {
               </div>
             </Section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold text-slate-900">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-6">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 Publishing Checklist
               </h2>
 
               <div className="mt-5 flex items-center gap-3">
                 {missing.length === 0 ? (
                   <CheckCircle2
-                    className="text-emerald-600"
+                    className="text-emerald-600 dark:text-emerald-300"
                     size={22}
                   />
                 ) : (
                   <AlertCircle
-                    className="text-amber-600"
+                    className="text-amber-600 dark:text-amber-300"
                     size={22}
                   />
                 )}
@@ -534,7 +534,7 @@ export default function ReviewPublishPage() {
                   {missing.map((requirement) => (
                     <li
                       key={requirement}
-                      className="flex items-start gap-2 text-sm text-amber-800"
+                      className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300"
                     >
                       <AlertCircle
                         size={16}
@@ -552,7 +552,7 @@ export default function ReviewPublishPage() {
                 type="button"
                 onClick={loadData}
                 disabled={publishing}
-                className="mt-5 text-sm font-semibold text-blue-600 hover:underline"
+                className="mt-5 text-sm font-semibold text-blue-600 dark:text-blue-300 hover:underline"
               >
                 Refresh Checklist
               </button>
@@ -578,7 +578,7 @@ export default function ReviewPublishPage() {
               )}
 
               {!published && !canPublish && (
-                <p className="mt-3 text-xs leading-5 text-slate-500">
+                <p className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
                   Publishing becomes available once
                   the backend confirms all requirements.
                 </p>
@@ -589,17 +589,17 @@ export default function ReviewPublishPage() {
       </div>
 
       {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 sm:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="publish-title"
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-xl sm:p-6"
           >
             <div className="flex items-start justify-between gap-4">
               <h2
                 id="publish-title"
-                className="text-xl font-bold text-slate-900"
+                className="text-xl font-bold text-slate-900 dark:text-slate-100"
               >
                 Publish Clinic Website?
               </h2>
@@ -613,7 +613,7 @@ export default function ReviewPublishPage() {
               </button>
             </div>
 
-            <p className="mt-4 text-sm leading-6 text-slate-600">
+            <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
               Your clinic information, doctors, and
               services will become publicly visible.
               Are you ready to publish?
@@ -623,7 +623,7 @@ export default function ReviewPublishPage() {
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="rounded-xl border border-slate-200 px-5 py-3 font-semibold"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 px-5 py-3 font-semibold"
               >
                 Cancel
               </button>

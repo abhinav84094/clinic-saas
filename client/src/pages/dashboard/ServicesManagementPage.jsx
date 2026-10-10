@@ -17,7 +17,7 @@ const DAYS = [
 ];
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none";
+  "mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none";
 
 const idOf = (value) =>
   String(
@@ -51,11 +51,11 @@ const emptySchedule = {
 
 function Section({ title, description, children }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <h2 className="text-lg font-bold text-slate-900">
+    <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-6">
+      <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
         {title}
       </h2>
-      <p className="mb-5 mt-1 text-sm text-slate-500">
+      <p className="mb-5 mt-1 text-sm text-slate-500 dark:text-slate-400">
         {description}
       </p>
       {children}
@@ -71,8 +71,8 @@ function StatusButton({ active, disabled, onClick }) {
       onClick={onClick}
       className={`rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50 ${
         active
-          ? "border-red-200 text-red-700"
-          : "border-green-200 text-green-700"
+          ? "border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+          : "border-green-200 dark:border-green-800 text-green-700 dark:text-green-300"
       }`}
     >
       {active ? "Deactivate" : "Activate"}
@@ -342,7 +342,7 @@ export default function ServicesManagementPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-2 p-12">
+      <div className="flex items-center justify-center gap-2 px-4 py-8 sm:p-12">
         <LoaderCircle className="animate-spin" size={20} />
         Loading clinic services...
       </div>
@@ -353,10 +353,10 @@ export default function ServicesManagementPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             Services & Availability
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Manage clinic services, consultation pricing,
             and doctor working hours.
           </p>
@@ -367,7 +367,7 @@ export default function ServicesManagementPage() {
           onClick={() =>
             perform(async () => {}, "Information refreshed.")
           }
-          className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm font-semibold"
+          className="flex items-center gap-2 rounded-xl border bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold"
         >
           <RefreshCw size={16} />
           Refresh
@@ -375,19 +375,19 @@ export default function ServicesManagementPage() {
       </header>
 
       {error && (
-        <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+        <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300">
           {error}
         </p>
       )}
 
       {success && (
-        <p role="status" className="rounded-xl bg-green-50 p-4 text-sm text-green-700">
+        <p role="status" className="rounded-xl bg-green-50 dark:bg-green-950/40 p-4 text-sm text-green-700 dark:text-green-300">
           {success}
         </p>
       )}
 
       {!canManage && (
-        <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+        <p className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
           Management is unavailable for this clinic status.
         </p>
       )}
@@ -404,10 +404,10 @@ export default function ServicesManagementPage() {
             >
               <div>
                 <p className="font-semibold">{service.name}</p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {service.description || "No description"}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-400">
                   {service.isActive ? "Active" : "Inactive"}
                 </p>
               </div>
@@ -440,7 +440,7 @@ export default function ServicesManagementPage() {
             </div>
           ))}
           {!services.length && (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               No services configured yet.
             </p>
           )}
@@ -459,7 +459,7 @@ export default function ServicesManagementPage() {
 
         {serviceForm && (
           <form onSubmit={saveService} className="mt-5 space-y-4 rounded-xl border p-4">
-            <div className="flex justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <strong>{serviceEditId ? "Edit Service" : "Add Service"}</strong>
               <button type="button" disabled={busy} onClick={() => setServiceForm(null)}>
                 <X size={18} />
@@ -505,10 +505,10 @@ export default function ServicesManagementPage() {
                 <p className="font-semibold">
                   {doctorName(offering.doctorId)} — {serviceName(offering.serviceId)}
                 </p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   ₹{offering.fee} · {offering.durationMinutes} minutes
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-400">
                   {offering.isActive ? "Active" : "Inactive"}
                 </p>
               </div>
@@ -540,7 +540,7 @@ export default function ServicesManagementPage() {
             </div>
           ))}
           {!offerings.length && (
-            <p className="text-sm text-slate-500">No consultations configured.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">No consultations configured.</p>
           )}
         </div>
 
@@ -557,7 +557,7 @@ export default function ServicesManagementPage() {
 
         {offeringForm && (
           <form onSubmit={saveOffering} className="mt-5 grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
-            <div className="flex justify-between sm:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
               <strong>{offeringEditId ? "Edit Consultation" : "Add Consultation"}</strong>
               <button type="button" disabled={busy} onClick={() => setOfferingForm(null)}>
                 <X size={18} />
@@ -630,7 +630,7 @@ export default function ServicesManagementPage() {
         title="Doctor Working Hours"
         description="Configure individual weekly shifts. Overlapping active shifts are rejected by the backend."
       >
-        <div className="mb-4 flex items-center gap-2 text-blue-600">
+        <div className="mb-4 flex items-center gap-2 text-blue-600 dark:text-blue-300">
           <CalendarClock size={19} />
           <span className="text-sm font-medium">
             Weekly availability
@@ -653,10 +653,10 @@ export default function ServicesManagementPage() {
                   <p className="font-semibold">
                     {doctorName(schedule.doctorId)}
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {DAYS[schedule.dayOfWeek]} · {schedule.startTime} – {schedule.endTime}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-400">
                     {schedule.isActive ? "Active" : "Inactive"}
                   </p>
                 </div>
@@ -689,7 +689,7 @@ export default function ServicesManagementPage() {
             ))}
 
           {!schedules.length && (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               No working hours configured yet.
             </p>
           )}
@@ -708,7 +708,7 @@ export default function ServicesManagementPage() {
 
         {scheduleForm && (
           <form onSubmit={saveSchedule} className="mt-5 grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
-            <div className="flex justify-between sm:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
               <strong>{scheduleEditId ? "Edit Working Hours" : "Add Working Hours"}</strong>
               <button type="button" disabled={busy} onClick={() => setScheduleForm(null)}>
                 <X size={18} />

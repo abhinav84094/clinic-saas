@@ -64,7 +64,7 @@ const navigation = [
   {
     label: "Subscription",
     icon: CreditCard,
-    comingSoon: true,
+    path: (id) => `/dashboard/clinic/${id}/subscription`,
   },
 ];
 
@@ -72,28 +72,28 @@ const navigation = [
 function SidebarContent({ clinicId, clinic, onNavigate }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-5">
+      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-700 px-5 py-5">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
           <Activity size={22} />
         </div>
 
         <div>
-          <p className="font-bold text-slate-900">
+          <p className="font-bold text-slate-900 dark:text-slate-100">
             Prakash SaaS
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Clinic Management
           </p>
         </div>
       </div>
 
       <div className="px-4 pt-5">
-        <div className="rounded-xl bg-blue-50 p-3">
-          <p className="truncate text-sm font-bold text-slate-900">
+        <div className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3">
+          <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
             {clinic?.name || "Your Clinic"}
           </p>
 
-          <p className="mt-1 text-xs capitalize text-blue-700">
+          <p className="mt-1 text-xs capitalize text-blue-700 dark:text-blue-300">
             {clinic?.status || "Loading..."}
           </p>
         </div>
@@ -110,7 +110,7 @@ function SidebarContent({ clinicId, clinic, onNavigate }) {
             return (
               <div
                 key={item.label}
-                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-400"
+                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-400 dark:text-slate-400"
               >
                 <Icon size={19} />
 
@@ -133,8 +133,8 @@ function SidebarContent({ clinicId, clinic, onNavigate }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
                   isActive
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-slate-800"
                 }`
               }
             >
@@ -150,11 +150,11 @@ function SidebarContent({ clinicId, clinic, onNavigate }) {
         })}
       </nav>
 
-      <div className="border-t border-slate-200 p-4">
+      <div className="border-t border-slate-200 dark:border-slate-700 p-4">
         <Link
           to="/my-clinics"
           onClick={onNavigate}
-          className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+          className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 hover:dark:bg-slate-800"
         >
           <ArrowLeft size={18} />
           Back to My Clinics
@@ -172,8 +172,8 @@ export default function DashboardLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-dvh bg-slate-50">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block">
+    <div className="min-h-dvh bg-slate-50 dark:bg-slate-950">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 lg:block">
         <SidebarContent
           clinicId={clinicId}
           clinic={clinic}
@@ -189,12 +189,12 @@ export default function DashboardLayout({
             className="absolute inset-0 bg-slate-950/50"
           />
 
-          <aside className="relative z-10 h-full w-72 max-w-[85vw] bg-white shadow-xl">
+          <aside className="relative z-10 h-full w-72 max-w-[85vw] bg-white dark:bg-slate-900 shadow-xl">
             <button
               type="button"
               aria-label="Close menu"
               onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-5 z-20 rounded-lg p-2 hover:bg-slate-100"
+              className="absolute right-3 top-5 z-20 rounded-lg p-2 hover:bg-slate-100 hover:dark:bg-slate-800"
             >
               <X size={20} />
             </button>
@@ -209,32 +209,32 @@ export default function DashboardLayout({
       )}
 
       <div className="min-h-dvh lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-7">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 sm:px-7">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
               aria-label="Open navigation"
               onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 hover:bg-slate-100 lg:hidden"
+              className="rounded-lg p-2 hover:bg-slate-100 hover:dark:bg-slate-800 lg:hidden"
             >
               <Menu size={22} />
             </button>
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-900">
+              <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
                 {clinic?.name || "Clinic Dashboard"}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Owner Workspace
               </p>
             </div>
           </div>
 
           <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+            className={`ml-3 shrink-0 rounded-full px-3 py-1 text-xs font-semibold capitalize ${
               clinic?.status === "active"
-                ? "bg-green-50 text-green-700"
-                : "bg-amber-50 text-amber-700"
+                ? "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300"
+                : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
             }`}
           >
             {clinic?.status || "Loading"}
