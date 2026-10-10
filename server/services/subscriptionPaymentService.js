@@ -74,6 +74,7 @@ export const classifyRazorpayOrder = async (razorpay, remote) => {
   return "retryable";
 };
 
+
 const processCapturedPayment = async ({
   record,
   razorpayPaymentId,
@@ -101,6 +102,7 @@ const processCapturedPayment = async ({
         throw fail("Subscription not found", 404);
       }
 
+      // Idempotency: never activate the same payment twice.
       if (payment.status === "paid") {
         if (payment.razorpayPaymentId !== razorpayPaymentId) {
           throw fail("Payment identity conflict");
@@ -110,6 +112,7 @@ const processCapturedPayment = async ({
           paymentId: payment._id,
           subscriptionId: subscription._id,
           status: subscription.status,
+          plan: subscription.plan,
           currentPeriodStart: subscription.currentPeriodStart,
           currentPeriodEnd: subscription.currentPeriodEnd,
           alreadyProcessed: true,
@@ -131,16 +134,109 @@ const processCapturedPayment = async ({
         return;
       }
 
-      const matches =
-        payment.status === "created" &&
-        subscription.status === "pending" &&
-        subscription.plan === payment.plan &&
-        subscription.billingCycle === payment.billingCycle &&
-        subscription.priceSnapshot * 100 === payment.amount;
-
       const now = new Date();
+      const purpose = payment.purpose || "registration";
 
-      if (!matches) {
+      const config = getPlanConfig(
+        payment.plan,
+        payment.billingCycle
+      );
+
+      const validPrice =
+        Number.isSafeInteger(payment.amount) &&
+        payment.amount > 0 &&
+        config.price * 100 === payment.amount;
+
+      const active =
+        subscription.status === "active" &&
+        subscription.currentPeriodStart <= now &&
+        subscription.currentPeriodEnd > now;
+
+      const expired =
+        subscription.status === "expired" ||
+        (
+          subscription.currentPeriodEnd != null &&
+          subscription.currentPeriodEnd <= now
+        );
+
+      const rank = {
+        basic: 0,
+        starter: 1,
+        growth: 2,
+        unlimited: 3,
+      };
+
+      let eligible = false;
+      let newBookingLimit = config.bookingLimit;
+
+      if (purpose === "registration") {
+        eligible =
+          payment.plan === "basic" &&
+          payment.status === "created" &&
+          subscription.status === "pending" &&
+          subscription.plan === "basic" &&
+          subscription.billingCycle === payment.billingCycle &&
+          subscription.priceSnapshot * 100 === payment.amount;
+      }
+
+      if (purpose === "renewal") {
+        eligible =
+          payment.plan === "basic" &&
+          payment.status === "created" &&
+          expired &&
+          !active &&
+          subscription.status !== "cancelled" &&
+          payment.fromPlan == null;
+
+        // Renewal never carries old bookings.
+        newBookingLimit = 0;
+      }
+
+      if (purpose === "upgrade") {
+        eligible =
+          payment.status === "created" &&
+          active &&
+          subscription.plan === payment.fromPlan &&
+          subscription.billingCycle === payment.billingCycle &&
+          rank[payment.plan] > rank[subscription.plan];
+
+        if (eligible) {
+          const remaining =
+            subscription.bookingLimit === null
+              ? 0
+              : Math.max(
+                  0,
+                  subscription.bookingLimit -
+                    subscription.bookingsUsed
+                );
+
+          newBookingLimit =
+            config.bookingLimit === null
+              ? null
+              : config.bookingLimit + remaining;
+
+          if (
+            newBookingLimit !== null &&
+            !Number.isSafeInteger(newBookingLimit)
+          ) {
+            eligible = false;
+          }
+        }
+      }
+
+      // Snapshot must match the purchased plan's base quota.
+      const validSnapshot =
+        purpose === "registration" ||
+        payment.bookingLimitSnapshot === config.bookingLimit;
+
+      if (
+        !eligible ||
+        !validPrice ||
+        !validSnapshot ||
+        !["created", "abandoned", "superseded"].includes(
+          payment.status
+        )
+      ) {
         if (
           !["created", "abandoned", "superseded"].includes(
             payment.status
@@ -154,7 +250,7 @@ const processCapturedPayment = async ({
         payment.paidAt = now;
         payment.reviewRequiredAt = now;
         payment.reviewReason =
-          "Captured payment belongs to an old or mismatched order";
+          "Captured payment could not safely activate the selected plan";
 
         await payment.save({ session });
 
@@ -166,11 +262,8 @@ const processCapturedPayment = async ({
         return;
       }
 
-      // Both checkout switching and payment activation write
-      // the same subscription document inside transactions.
-      // A concurrent change will cause a transaction conflict.
       const days =
-        subscription.billingCycle === "monthly" ? 30 : 365;
+        payment.billingCycle === "monthly" ? 30 : 365;
 
       const end = new Date(
         now.getTime() + days * 24 * 60 * 60 * 1000
@@ -180,11 +273,16 @@ const processCapturedPayment = async ({
       payment.razorpayPaymentId = razorpayPaymentId;
       payment.paidAt = now;
 
+      subscription.plan = payment.plan;
+      subscription.billingCycle = payment.billingCycle;
+      subscription.priceSnapshot = config.price;
+      subscription.bookingLimit = newBookingLimit;
+      subscription.bookingsUsed = 0;
       subscription.status = "active";
       subscription.currentPeriodStart = now;
       subscription.currentPeriodEnd = end;
-      subscription.bookingsUsed = 0;
 
+      // Save both records atomically.
       await payment.save({ session });
       await subscription.save({ session });
 
@@ -192,6 +290,11 @@ const processCapturedPayment = async ({
         paymentId: payment._id,
         subscriptionId: subscription._id,
         status: "active",
+        purpose,
+        plan: subscription.plan,
+        billingCycle: subscription.billingCycle,
+        bookingLimit: subscription.bookingLimit,
+        bookingsUsed: 0,
         currentPeriodStart: now,
         currentPeriodEnd: end,
         alreadyProcessed: false,
@@ -203,6 +306,7 @@ const processCapturedPayment = async ({
     await session.endSession();
   }
 };
+
 
 const verifyCapturedPayment = async ({
   record,
