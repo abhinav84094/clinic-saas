@@ -34,6 +34,7 @@ import ClinicDashboardShell from "./components/dashboard/ClinicDashboardShell";
 import { getClinicSlugFromHostname } from "./utils/clinicDomain";
 
 import ServicesManagementPage from "./pages/dashboard/ServicesManagementPage";
+import ClinicProfilePage from "./pages/dashboard/ClinicProfilePage";
 
 
 function GuestRoute({ children }) {
@@ -196,16 +197,12 @@ export default function App() {
             element={<ReviewPublishPage />}
           />
 
+          
           {/* Unified clinic owner dashboard */}
           <Route
             path="/dashboard/clinic/:clinicId"
             element={<ClinicDashboardShell />}
           >
-
-            <Route
-              path="services"
-              element={<ServicesManagementPage />}
-            />
             <Route
               index
               element={<DashboardPage />}
@@ -213,7 +210,7 @@ export default function App() {
 
             <Route
               path="profile"
-              element={<ClinicSetupPage />}
+              element={<ClinicProfilePage />}
             />
 
             <Route
@@ -223,7 +220,7 @@ export default function App() {
 
             <Route
               path="services"
-              element={<ServicesSetupPage />}
+              element={<ServicesManagementPage />}
             />
 
             <Route
@@ -231,6 +228,7 @@ export default function App() {
               element={<WebsiteSetupPage />}
             />
           </Route>
+
 
           <Route
             path="/dashboard"
