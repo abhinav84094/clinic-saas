@@ -27,6 +27,7 @@ export default function ClinicWebsiteTemplate({
   doctors = [],
   services = [],
   preview = false,
+  onSelectDoctor,
 }) {
   const color = /^#[0-9a-fA-F]{6}$/.test(
     clinic?.branding?.primaryColor || ""
@@ -50,7 +51,6 @@ export default function ClinicWebsiteTemplate({
       className="min-w-0 overflow-hidden rounded-xl bg-white text-slate-900"
       style={{ "--clinic-primary": color }}
     >
-      {/* Header */}
       <header className="border-b border-slate-100 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
@@ -86,7 +86,6 @@ export default function ClinicWebsiteTemplate({
         </div>
       </header>
 
-      {/* Hero */}
       <section className="bg-slate-50 px-5 py-16 sm:px-8 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <p
@@ -128,7 +127,6 @@ export default function ClinicWebsiteTemplate({
         </div>
       </section>
 
-      {/* About */}
       <section
         id="about"
         className="mx-auto max-w-6xl px-5 py-12 sm:px-8"
@@ -143,7 +141,6 @@ export default function ClinicWebsiteTemplate({
         </p>
       </section>
 
-      {/* Doctors */}
       <section
         id="doctors"
         className="bg-slate-50 px-5 py-12 sm:px-8"
@@ -194,6 +191,18 @@ export default function ClinicWebsiteTemplate({
                       {doctor.bio}
                     </p>
                   )}
+
+                  {!preview && (
+                    <button
+                      type="button"
+                      onClick={() => onSelectDoctor?.(doctor)}
+                      className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white"
+                      style={{ backgroundColor: color }}
+                    >
+                      <CalendarDays size={17} />
+                      Check Availability
+                    </button>
+                  )}
                 </article>
               ))
             ) : (
@@ -205,7 +214,6 @@ export default function ClinicWebsiteTemplate({
         </div>
       </section>
 
-      {/* Services */}
       <section
         id="services"
         className="mx-auto max-w-6xl px-5 py-12 sm:px-8"
@@ -243,13 +251,11 @@ export default function ClinicWebsiteTemplate({
                     {service.doctors.map((doctor) => (
                       <div
                         key={getId(
-                          doctor.offeringId ||
-                            doctor.doctorId
+                          doctor.offeringId || doctor.doctorId
                         )}
                         className="flex flex-wrap items-center justify-between gap-2 text-sm"
                       >
                         <span>{doctor.name}</span>
-
                         <span className="font-semibold">
                           ₹{doctor.fee} ·{" "}
                           {doctor.durationMinutes} min
@@ -268,7 +274,6 @@ export default function ClinicWebsiteTemplate({
         </div>
       </section>
 
-      {/* Contact */}
       <section
         id="contact"
         className="bg-slate-50 px-5 py-12 sm:px-8"

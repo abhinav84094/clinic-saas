@@ -1,11 +1,11 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
 
 import api from "../services/api";
-
 import ClinicWebsiteTemplate from "../components/clinic/ClinicWebsiteTemplate";
+import DoctorAvailabilityModal from "../components/clinic/DoctorAvailabilityModal";
 import { getClinicSlugFromHostname } from "../utils/clinicDomain";
 
 export default function PublicClinicPage() {
@@ -15,8 +15,13 @@ export default function PublicClinicPage() {
 
   const [data, setData] = useState(null);
   const [services, setServices] = useState([]);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const closeModal = useCallback(() => {
+    setSelectedDoctor(null);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -26,6 +31,7 @@ export default function PublicClinicPage() {
       setError("");
       setData(null);
       setServices([]);
+      setSelectedDoctor(null);
 
       if (!slug) {
         setError("Invalid clinic website URL.");
@@ -56,9 +62,7 @@ export default function PublicClinicPage() {
           );
         }
       } finally {
-        if (alive) {
-          setLoading(false);
-        }
+        if (alive) setLoading(false);
       }
     }
 
@@ -90,10 +94,24 @@ export default function PublicClinicPage() {
   }
 
   return (
-    <ClinicWebsiteTemplate
-      clinic={data.clinic}
-      doctors={data.doctors || []}
-      services={services}
-    />
+    <>
+      <main>
+        <ClinicWebsiteTemplate
+          clinic={data.clinic}
+          doctors={data.doctors || []}
+          services={services}
+          onSelectDoctor={setSelectedDoctor}
+        />
+      </main>
+
+      <DoctorAvailabilityModal
+        open={Boolean(selectedDoctor)}
+        onClose={closeModal}
+        doctor={selectedDoctor}
+        clinic={data.clinic}
+        services={services}
+        slug={slug}
+      />
+    </>
   );
 }

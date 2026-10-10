@@ -10,7 +10,10 @@ import {
 } from "../controllers/clinicController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
-import { requireClinicAccess } from "../middleware/clinicAccessMiddleware.js";
+
+import {
+  requireClinicAccess,
+} from "../middleware/clinicAccessMiddleware.js";
 
 import {
   getPublishingReadinessController,
@@ -32,25 +35,33 @@ import {
   getPendingPaymentController,
 } from "../controllers/subscriptionRecoveryController.js";
 
+import {
+  getClinicDashboardController,
+} from "../controllers/dashboardController.js";
+
 const router = Router();
 
+// Clinic slug availability
 router.get(
   "/slug-availability",
   getSlugAvailability
 );
 
+// Create clinic
 router.post(
   "/",
   protect,
   createClinicController
 );
 
+// Current user's clinics
 router.get(
   "/my-clinics",
   protect,
   getMyClinics
 );
 
+// Clinic profile
 router.get(
   "/:clinicId",
   protect,
@@ -58,6 +69,15 @@ router.get(
   getClinicProfile
 );
 
+// Dashboard statistics and upcoming appointments
+router.get(
+  "/:clinicId/dashboard",
+  protect,
+  requireClinicAccess(),
+  getClinicDashboardController
+);
+
+// Update clinic
 router.patch(
   "/:clinicId",
   protect,
@@ -65,6 +85,7 @@ router.patch(
   updateClinicProfileController
 );
 
+// Publishing readiness
 router.get(
   "/:clinicId/publishing-readiness",
   protect,
@@ -72,6 +93,7 @@ router.get(
   getPublishingReadinessController
 );
 
+// Publish clinic
 router.post(
   "/:clinicId/publish",
   protect,
@@ -79,6 +101,7 @@ router.post(
   publishClinicController
 );
 
+// Subscription setup
 router.get(
   "/:clinicId/subscription",
   protect,
@@ -86,6 +109,7 @@ router.get(
   getSubscriptionSetupController
 );
 
+// Update billing cycle
 router.patch(
   "/:clinicId/subscription/billing-cycle",
   protect,
@@ -93,6 +117,7 @@ router.patch(
   updateBillingCycleController
 );
 
+// Pending subscription payment
 router.get(
   "/:clinicId/subscription/pending-payment",
   protect,
@@ -100,6 +125,7 @@ router.get(
   getPendingPaymentController
 );
 
+// Create Razorpay payment order
 router.post(
   "/:clinicId/subscription/payment-order",
   protect,
@@ -107,6 +133,7 @@ router.post(
   createPaymentOrder
 );
 
+// Verify payment
 router.post(
   "/:clinicId/subscription/verify-payment",
   protect,
@@ -114,6 +141,7 @@ router.post(
   verifyPaymentController
 );
 
+// Reconcile payment
 router.post(
   "/:clinicId/subscription/reconcile-payment",
   protect,
