@@ -38,6 +38,9 @@ const getPublicClinicFields = (clinic) => ({
     primaryColor:
       clinic.branding?.primaryColor || "#2563EB",
   },
+  website: {
+    templateId: clinic.website?.templateId || "A",
+  },
   timezone: clinic.timezone || "Asia/Kolkata",
 });
 
@@ -158,9 +161,7 @@ export const getPublicClinicServices = async (slugValue) => {
       qualifications: doctor.qualifications,
       fee: offering.fee,
       durationMinutes: offering.durationMinutes,
-      website: {
-        templateId: clinic.website?.templateId || "A",
-      },
+      
     });
   }
 

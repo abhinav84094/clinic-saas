@@ -170,23 +170,182 @@ export default function WebsiteSetupPage() {
                 Your saved clinic details automatically appear in every template.
               </p>
               <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {availableTemplates.map((template) => {
-                  const selected = selectedTemplate === template.id;
-                  return (
-                    <button key={template.id} type="button" aria-pressed={selected}
-                      disabled={!canEdit || savingTemplate}
-                      onClick={() => { setSelectedTemplate(template.id); setSuccess(""); setError(""); }}
-                      className={`rounded-xl border-2 p-5 text-left transition disabled:opacity-60 ${selected ? "border-blue-600 bg-blue-50 dark:bg-blue-950/40" : "border-slate-200 dark:border-slate-700 hover:border-blue-300"}`}>
-                      <div className="mb-4 flex h-28 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-3xl font-bold text-blue-600 dark:text-blue-300">
-                        {template.id}
+                              
+              {availableTemplates.map((template) => {
+                const selected = selectedTemplate === template.id;
+
+                const styles = {
+                  A: {
+                    background: "bg-slate-50",
+                    header: "bg-white",
+                    heading: "bg-blue-600",
+                    button: "bg-blue-600",
+                    illustration: "bg-blue-100",
+                    border: "border-blue-200",
+                  },
+                  B: {
+                    background: "bg-teal-50",
+                    header: "bg-white",
+                    heading: "bg-teal-600",
+                    button: "bg-teal-600",
+                    illustration: "bg-teal-200",
+                    border: "border-teal-200",
+                  },
+                  C: {
+                    background: "bg-[#15242c]",
+                    header: "bg-[#15242c]",
+                    heading: "bg-[#d9b88a]",
+                    button: "bg-[#d9b88a]",
+                    illustration: "bg-[#304650]",
+                    border: "border-slate-700",
+                  },
+                };
+
+                const design = styles[template.id] || styles.A;
+
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={!canEdit || savingTemplate}
+                    onClick={() => {
+                      setSelectedTemplate(template.id);
+                      setSuccess("");
+                      setError("");
+                    }}
+                    className={`group overflow-hidden rounded-2xl border-2 p-3 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 sm:p-4 ${
+                      selected
+                        ? "border-blue-600 bg-blue-50 shadow-md dark:bg-blue-950/40"
+                        : "border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900"
+                    }`}
+                  >
+                    {/* Mini website preview */}
+                    <div
+                      className={`h-36 overflow-hidden rounded-xl border ${design.border} ${design.background}`}
+                    >
+                      {/* Mini navigation */}
+                      <div
+                        className={`flex h-8 items-center justify-between px-3 ${design.header}`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <div className={`h-4 w-4 rounded-full ${design.heading}`} />
+                          <div
+                            className={`h-1.5 w-12 rounded ${
+                              template.id === "C"
+                                ? "bg-white/70"
+                                : "bg-slate-500"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="flex gap-1.5">
+                          {[1, 2, 3].map((item) => (
+                            <div
+                              key={item}
+                              className={`h-1 w-5 rounded ${
+                                template.id === "C"
+                                  ? "bg-white/40"
+                                  : "bg-slate-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-semibold">{template.name}</span>
-                        {selected && <span className="text-xs font-bold text-blue-600 dark:text-blue-300">Selected</span>}
+
+                      {/* Mini hero */}
+                      <div className="flex gap-3 px-3 py-4">
+                        <div className="flex-1 space-y-2">
+                          <div className={`h-2 w-full rounded ${design.heading}`} />
+
+                          <div
+                            className={`h-2 w-3/4 rounded ${design.heading} opacity-70`}
+                          />
+
+                          <div
+                            className={`h-1 w-full rounded ${
+                              template.id === "C"
+                                ? "bg-white/30"
+                                : "bg-slate-300"
+                            }`}
+                          />
+
+                          <div
+                            className={`h-1 w-4/5 rounded ${
+                              template.id === "C"
+                                ? "bg-white/30"
+                                : "bg-slate-300"
+                            }`}
+                          />
+
+                          <div
+                            className={`mt-3 h-4 w-16 rounded ${design.button}`}
+                          />
+                        </div>
+
+                        <div
+                          className={`flex h-16 w-2/5 items-center justify-center rounded-lg ${design.illustration}`}
+                        >
+                          <Stethoscope
+                            size={25}
+                            className={
+                              template.id === "C"
+                                ? "text-[#d9b88a]"
+                                : template.id === "B"
+                                  ? "text-teal-700"
+                                  : "text-blue-600"
+                            }
+                          />
+                        </div>
                       </div>
-                    </button>
-                  );
-                })}
+
+                      {/* Mini service cards */}
+                      <div className="flex gap-2 px-3">
+                        {[1, 2, 3].map((item) => (
+                          <div
+                            key={item}
+                            className={`h-7 flex-1 rounded-md ${
+                              template.id === "C"
+                                ? "border border-white/20 bg-white/10"
+                                : "border border-slate-200 bg-white"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Template information */}
+                    <div className="mt-4 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 dark:text-white">
+                          {template.name}
+                        </h3>
+
+                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          {template.description}
+                        </p>
+                      </div>
+
+                      {selected && (
+                        <span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+
+                    <div
+                      className={`mt-4 rounded-lg py-2 text-center text-xs font-bold ${
+                        selected
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                      }`}
+                    >
+                      {selected ? "Current Selection" : "Select Template"}
+                    </div>
+                  </button>
+                );
+              })}
+
               </div>
               {success && <p role="status" className="mt-4 text-sm text-green-700 dark:text-green-300">{success}</p>}
               {hasUnsavedSelection && (

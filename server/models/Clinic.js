@@ -153,7 +153,7 @@ const clinicSchema = new Schema(
     website: {
       templateId: {
         type: String,
-        enum: ["A"],
+        enum: ["A", "B", "C"],
         default: "A",
       },
     },

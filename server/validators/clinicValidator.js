@@ -100,7 +100,7 @@ export const updateClinicSchema = z.strictObject({
 
     timezone: timezoneSchema.optional(),
     website: z.strictObject({
-      templateId: z.enum(["A"]),
+      templateId: z.enum(["A", "B" ,"C"]),
     }).optional(),
     })
    .refine(
