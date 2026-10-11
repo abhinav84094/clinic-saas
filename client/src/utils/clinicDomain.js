@@ -17,6 +17,17 @@ const RESERVED_SUBDOMAINS = new Set([
   "support",
   "static",
   "assets",
+  "clinic",
+  "clinics",
+  "hall",
+  "banquet",
+  "salon",
+  "spa",
+  "hospital",
+  "school",
+  "institute",
+  "abhinavprakash",
+  "abhinav"
 ]);
 
 export function getClinicSlugFromHostname(
