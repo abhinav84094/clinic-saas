@@ -2,7 +2,7 @@ import { fieldErrorsFrom } from "../utils/formErrors";
 import InlineError from "../components/shared/InlineError";
 import ClinicSetupProgress from "../components/shared/ClinicSetupProgress";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 
 import api from "../services/api";
+import { normalizeSlug, suggestSlug, validateSlug } from "../../../shared/slug.js";
+import { getClinicPublicUrl } from "../utils/clinicDomain";
+
+const takenMessage = "This website address is already in use. Please choose another one.";
+const fieldOrder = ["name", "slug", "phone", "email", "line1", "city", "state", "postalCode", "description", "billingCycle"];
 
 const initialForm = {
   name: "",
@@ -30,7 +35,7 @@ const initialForm = {
 };
 
 const inputClass =
-  "mt-2 min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 dark:disabled:bg-slate-800";
+  "mt-2 min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 scroll-mt-28 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 dark:disabled:bg-slate-800";
 
 export default function ClinicSetupPage() {
   const { clinicId } = useParams();
@@ -44,6 +49,64 @@ export default function ClinicSetupPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
   const [status, setStatus] = useState("draft");
+  const manualSlug = useRef(false);
+  const inputs = useRef({});
+  const [focusRequest, setFocusRequest] = useState(null);
+  const handledFocus = useRef(null);
+  const [availability, setAvailability] = useState({});
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
+  const slugValidation = validateSlug(form.slug);
+  const slug = slugValidation.slug;
+  const publicUrl = slugValidation.valid ? getClinicPublicUrl(slug) : null;
+  const currentAvailability = availability.slug === slug ? availability : {};
+  const slugFeedback = !editing && form.slug ? (
+    !slugValidation.valid ? slugValidation.reason :
+    currentAvailability.state === "available" ? "This website address is available." :
+    currentAvailability.state === "taken" ? takenMessage :
+    currentAvailability.state === "error" ? "Unable to check availability right now. Please try again." :
+    currentAvailability.state === "invalid" ? currentAvailability.message :
+    "Checking website address..."
+  ) : "";
+  const slugError = fieldErrors.slug || (!editing && form.slug && (
+    !slugValidation.valid ? slugValidation.reason :
+    currentAvailability.state === "taken" ? takenMessage :
+    currentAvailability.state === "invalid" ? currentAvailability.message : ""
+  ));
+
+  useEffect(() => {
+    if (editing || !validateSlug(slug).valid) return;
+    let active = true;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get("/clinics/slug-availability", {
+          params: { slug }, signal: controller.signal,
+        });
+        if (active) setAvailability({ slug, state: data.slug === slug && data.available === true ? "available" : data.slug === slug && data.available === false ? "taken" : "error" });
+      } catch (err) {
+        if (active) setAvailability({ slug, state: err.response?.status === 400 ? "invalid" : "error", message: err.response?.data?.message });
+      }
+    }, 400);
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [slug, editing, availabilityAttempt]);
+
+  useLayoutEffect(() => {
+    if (!focusRequest || saving || handledFocus.current === focusRequest) return;
+    handledFocus.current = focusRequest;
+    const input = inputs.current[focusRequest.name];
+    if (input && !input.disabled) {
+      // On touch screens focus the field container to avoid opening the keyboard.
+      const target = window.matchMedia("(pointer: coarse)").matches ? input.parentElement : input;
+      if (target !== input) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      input.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    }
+  }, [focusRequest, saving]);
+
+  function showErrors(errors) {
+    setFieldErrors(errors);
+    setFocusRequest({ name: fieldOrder.find(name => errors[name] && !inputs.current[name]?.disabled) });
+  }
 
   useEffect(() => {
     if (!clinicId) return;
@@ -97,10 +160,16 @@ export default function ClinicSetupPage() {
   function handleChange(event) {
     const { name, value } = event.target;
 
+    if (name === "slug") manualSlug.current = true;
+    const generate = name === "name" && !editing && !manualSlug.current;
+    const nextSlug = name === "slug" ? normalizeSlug(value) : generate ? suggestSlug(value) : slug;
+    if (nextSlug !== slug) setAvailability({});
     setForm((previous) => ({
       ...previous,
       [name]: value,
+      ...(generate ? { slug: suggestSlug(value) } : {}),
     }));
+    if (generate) setFieldErrors(previous => ({ ...previous, slug: "" }));
 
     setFieldErrors(previous => ({ ...previous, [name]: "" }));
     setError("");
@@ -130,6 +199,16 @@ export default function ClinicSetupPage() {
 
     if (saving) return;
 
+    const errors = {};
+    for (const name of fieldOrder) {
+      const input = inputs.current[name];
+      if (input && !input.disabled && !input.validity.valid) errors[name] = input.validationMessage;
+    }
+    if (!editing && !slugValidation.valid) errors.slug = slugValidation.reason;
+    if (!editing && currentAvailability.state === "taken") errors.slug = takenMessage;
+    if (!editing && currentAvailability.state === "invalid") errors.slug = currentAvailability.message;
+    if (Object.keys(errors).length) { showErrors(errors); return; }
+
     setFieldErrors({});
     setSaving(true);
     setError("");
@@ -147,7 +226,7 @@ export default function ClinicSetupPage() {
           "/clinics",
           {
             ...buildPayload(),
-            slug: form.slug.trim().toLowerCase(),
+            slug: normalizeSlug(form.slug),
             billingCycle: form.billingCycle,
           }
         );
@@ -162,13 +241,17 @@ export default function ClinicSetupPage() {
       );
     } catch (err) {
       const errors = fieldErrorsFrom(err, Object.keys(initialForm));
-      setFieldErrors(errors);
+      if (!editing && err.response?.status === 409) {
+        errors.slug = takenMessage;
+        setAvailability({ slug, state: "taken" });
+      }
+      showErrors(errors);
       const issues = err.response?.data?.errors || [];
       const allMapped = issues.length > 0 && issues.every(issue => {
         const path = issue.field || issue.path;
         return errors[(Array.isArray(path) ? path : String(path || "").split(".")).at(-1)];
       });
-      setError(allMapped ? "" : err.response?.data?.message || "Unable to save clinic details.");
+      setError(allMapped || errors.slug ? "" : err.response?.data?.message || "Unable to save clinic details.");
     } finally {
       setSaving(false);
     }
@@ -231,21 +314,27 @@ export default function ClinicSetupPage() {
           )}
 
           <form
+            noValidate
             onSubmit={handleSubmit}
-            className="grid gap-4 sm:grid-cols-2"
+            className="grid gap-6 sm:grid-cols-2"
           >
             {fields.map(
               ([name, label, type, required]) => (
-                <label
+                <div
                   key={name}
-                  className="block min-w-0 text-sm font-medium text-slate-700 dark:text-slate-200"
+                  className={`block min-w-0 text-sm font-semibold text-slate-800 dark:text-slate-200 focus-visible:outline-2 focus-visible:outline-red-500 ${name === "slug" ? "sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5" : ""}`}
                 >
-                  {label}{required && <span className="text-red-500" aria-hidden="true"> *</span>}{!required && <span className="font-normal text-slate-400"> (optional)</span>}
+                  {name === "slug" && <>
+                    <h2 className="text-base font-semibold">Your Clinic Website Address</h2>
+                    <p id="clinic-slug-help" className="mt-2 mb-4 text-sm font-normal leading-6 text-slate-600 dark:text-slate-300">Your clinic will have its own public website where patients can explore your services and book appointments.</p>
+                  </>}
+                  <label htmlFor={`clinic-${name}`}>{name === "slug" ? "Website address" : label}{required && <span className="text-red-500" aria-hidden="true"> *</span>}{!required && <span className="font-normal text-slate-500 dark:text-slate-400"> (optional)</span>}</label>
 
                   <input
+                    ref={element => { inputs.current[name] = element; }}
                     id={`clinic-${name}`}
-                    aria-invalid={Boolean(fieldErrors[name])}
-                    aria-describedby={fieldErrors[name] ? `clinic-${name}-error` : undefined}
+                    aria-invalid={Boolean(name === "slug" ? slugError : fieldErrors[name])}
+                    aria-describedby={name === "slug" ? `clinic-slug-help clinic-slug-feedback${slugError ? " clinic-slug-error" : ""}` : fieldErrors[name] ? `clinic-${name}-error` : undefined}
                     name={name}
                     type={type}
                     value={form[name]}
@@ -263,18 +352,39 @@ export default function ClinicSetupPage() {
                     placeholder={
                       ({ name: "City Care Clinic", slug: "city-care-clinic", phone: "Clinic contact number", email: "hello@yourclinic.com", line1: "Building, street and area", city: "City", state: "State", postalCode: "Postal code" })[name]
                     }
-                    className={`${inputClass} ${fieldErrors[name] ? "border-red-400 focus:border-red-500" : ""}`}
+                    className={`${inputClass} ${(name === "slug" ? slugError : fieldErrors[name]) ? "border-red-500 dark:border-red-400 focus:border-red-500 focus:ring-red-200" : ""}`}
                   />
-                  <InlineError id={`clinic-${name}-error`} message={fieldErrors[name]} />
-                  {name === "slug" && <span className="mt-2 block text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">Choose a unique name using lowercase letters, numbers and hyphens. Your website address cannot be changed after creation.</span>}
-                </label>
+                  <InlineError id={`clinic-${name}-error`} message={name === "slug" ? slugError : fieldErrors[name]} />
+                  {name === "slug" && <>
+                    <div id="clinic-slug-feedback" role="status" aria-live="polite" className={`mt-2 text-sm font-normal ${currentAvailability.state === "available" ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>
+                      {!slugError && slugFeedback}
+                    </div>
+                    {!editing && currentAvailability.state === "error" && <button type="button" disabled={saving} onClick={() => { setAvailability({}); setAvailabilityAttempt(value => value + 1); }} className="mt-2 text-sm font-semibold text-blue-600 underline dark:text-blue-300">Try again</button>}
+                    {!editing && <button type="button" disabled={saving || !suggestSlug(form.name)} onClick={() => {
+                      manualSlug.current = false;
+                      setForm(previous => ({ ...previous, slug: suggestSlug(previous.name) }));
+                      setAvailability({});
+                      setAvailabilityAttempt(value => value + 1);
+                      setFieldErrors(previous => ({ ...previous, slug: "" }));
+                    }} className="mt-2 block text-sm font-semibold text-blue-600 underline disabled:opacity-50 dark:text-blue-300">Use clinic name</button>}
+                    <div className="mt-4 rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
+                      <p className="text-sm font-semibold">Your public website</p>
+                      <p className="mt-1 break-all text-sm font-normal text-blue-700 dark:text-blue-300">{publicUrl || "Enter a valid website address to preview your URL."}</p>
+                    </div>
+                    <p className="mt-3 text-sm font-normal leading-6 text-slate-600 dark:text-slate-300">This will be your clinic's public website address. You can use your own custom domain later when that feature becomes available.</p>
+                    <p className="mt-2 text-sm font-normal text-slate-600 dark:text-slate-300">Your website address cannot be changed after creation.</p>
+                  </>}
+                </div>
               )
             )}
 
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 sm:col-span-2">
-              Clinic Description <span className="font-normal text-slate-400">(optional)</span>
+            <label className="block text-sm font-semibold text-slate-800 dark:text-slate-200 focus-visible:outline-2 focus-visible:outline-red-500 sm:col-span-2">
+              Clinic Description <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
 
               <textarea
+                id="clinic-description"
+                ref={element => { inputs.current.description = element; }}
+                aria-describedby={fieldErrors.description ? "clinic-description-error" : undefined}
                 aria-invalid={Boolean(fieldErrors.description)}
                 name="description"
                 value={form.description}
@@ -282,16 +392,20 @@ export default function ClinicSetupPage() {
                 rows={4}
                 maxLength={2000}
                 disabled={saving || status !== "draft"}
-                className={`${inputClass} resize-y`}
+                className={`${inputClass} resize-y ${fieldErrors.description ? "border-red-500 focus:ring-red-200" : ""}`}
               />
-              <InlineError message={fieldErrors.description} />
+              <InlineError id="clinic-description-error" message={fieldErrors.description} />
             </label>
 
             {!editing && (
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 sm:col-span-2">
+              <label className="block text-sm font-semibold text-slate-800 dark:text-slate-200 focus-visible:outline-2 focus-visible:outline-red-500 sm:col-span-2">
                 Billing Preference
 
                 <select
+                  id="clinic-billingCycle"
+                  ref={element => { inputs.current.billingCycle = element; }}
+                  aria-invalid={Boolean(fieldErrors.billingCycle)}
+                  aria-describedby={fieldErrors.billingCycle ? "clinic-billingCycle-error" : undefined}
                   name="billingCycle"
                   value={form.billingCycle}
                   onChange={handleChange}
@@ -307,7 +421,7 @@ export default function ClinicSetupPage() {
                   </option>
                 </select>
 
-                <InlineError message={fieldErrors.billingCycle} />
+                <InlineError id="clinic-billingCycle-error" message={fieldErrors.billingCycle} />
                 <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
                   No payment is collected at
                   this step.
