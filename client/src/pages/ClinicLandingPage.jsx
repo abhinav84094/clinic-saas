@@ -209,7 +209,7 @@ function Navbar({ theme, toggleTheme }) {
               Login
             </Link>
             <Link
-              to="/register"
+              to="/login"
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Get Started <ArrowRight size={16} />
@@ -253,7 +253,7 @@ function Navbar({ theme, toggleTheme }) {
             </Link>
 
             <Link
-              to="/register"
+              to="/login"
               onClick={() => setMenuOpen(false)}
               className="mt-2 rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white"
             >
@@ -340,7 +340,7 @@ export default function ClinicLandingPage() {
 
             <div className="mt-9 flex flex-wrap gap-3">
               <Link
-                to="/register"
+                to="/login"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-4 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
               >
                 Build Your Clinic Website
@@ -551,7 +551,7 @@ export default function ClinicLandingPage() {
             </p>
 
             <Link
-              to="/register"
+              to="/login"
               className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-blue-950 transition hover:bg-blue-50"
             >
               Get Started <ArrowRight size={17} />
@@ -603,7 +603,7 @@ export default function ClinicLandingPage() {
             Start building your professional clinic website today.
           </p>
           <Link
-            to="/register"
+            to="/login"
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 text-sm font-bold text-blue-700 transition hover:bg-blue-50"
           >
             Get Started <ArrowRight size={18} />
