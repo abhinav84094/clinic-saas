@@ -40,6 +40,10 @@ import WebsiteManagementPage from "./pages/dashboard/WebsiteManagementPage";
 import RenewPlanPage from "./pages/dashboard/RenewPlanPage";
 import SubscriptionPage from "./pages/dashboard/SubscriptionPage"
 
+
+import HomeRoute from "./components/shared/HomeRoute";
+
+
 function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
@@ -125,15 +129,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Home */}
-        <Route
-          path="/"
-          element={
-            <Navigate
-              to="/my-clinics"
-              replace
-            />
-          }
-        />
+        <Route path="/" element={<HomeRoute />} />
+
 
         {/* Authentication */}
         <Route
