@@ -1,4 +1,5 @@
 import express from "express";
+import { apiLimiters } from "../middleware/rateLimitMiddleware.js";
 import {
   registerUser,
   verifyEmail,
@@ -23,7 +24,7 @@ const router = express.Router();
 router.post("/register", registerUser);
 router.post("/verify-email", verifyEmail);
 router.post("/resend-verification-otp",resendVerificationOtp);
-router.post("/login", loginUser);
+router.post("/login", apiLimiters.passwordLogin, loginUser);
 router.get("/me", protect, getMe);
 router.post("/logout", logoutUser);
 router.post("/forgot-password", forgotPassword);
@@ -31,8 +32,8 @@ router.post("/reset-password", resetPassword);
 
 
 
-router.post("/google", googleLogin);
-router.post("/google/complete-signup",completeGoogleSignup);
+router.post("/google", apiLimiters.googleLogin, googleLogin);
+router.post("/google/complete-signup", apiLimiters.googleSignup, completeGoogleSignup);
 
 
 export default router;
