@@ -1,5 +1,6 @@
 
 import { Router } from "express";
+import { apiLimiters } from "../middleware/rateLimitMiddleware.js";
 
 import {
   getSlugAvailability,
@@ -46,6 +47,7 @@ const router = Router();
 // Clinic slug availability
 router.get(
   "/slug-availability",
+  apiLimiters.slugAvailability,
   getSlugAvailability
 );
 

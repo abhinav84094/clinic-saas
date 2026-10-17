@@ -15,8 +15,10 @@ import { fileURLToPath } from "node:url";
 import { protect } from "./middleware/authMiddleware.js";
 import { handleRazorpayWebhook } from "./controllers/razorpayWebhookController.js";
 import corsMiddleware from "./middleware/corsMiddleware.js";
+import { configureProxyTrust } from "./middleware/rateLimitMiddleware.js";
 
 const app = express();
+configureProxyTrust(app);
 
 
 const __filename = fileURLToPath(import.meta.url);
