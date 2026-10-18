@@ -84,14 +84,54 @@ export const getPublicClinicBySlug = async (slugValue) => {
     .sort({ createdAt: 1 })
     .lean();
 
+    const services = await getPublicClinicServices(slug);
+
   return {
-    clinic: getPublicClinicFields(clinic),
+    clinic: {
+      ...getPublicClinicFields(clinic),
+      seo: buildClinicSeo(clinic, doctors, services),
+    },
     doctors: doctors.map(getPublicDoctorFields),
   };
 };
 
 
+const buildClinicSeo = (clinic, doctors = [], services = []) => {
+  const location = [
+    clinic.address?.city,
+    clinic.address?.state,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
+  const doctorNames = doctors
+    .map((doctor) => doctor.name)
+    .filter(Boolean)
+    .slice(0, 3);
+
+  const serviceNames = services
+    .map((service) => service.name)
+    .filter(Boolean)
+    .slice(0, 3);
+
+  const titleParts = [
+    clinic.name,
+    location,
+    "Doctors & Services",
+  ].filter(Boolean);
+
+  const descriptionParts = [
+    clinic.description,
+    location && `Serving ${location}`,
+    doctorNames.length && `Doctors: ${doctorNames.join(", ")}`,
+    serviceNames.length && `Services: ${serviceNames.join(", ")}`,
+  ].filter(Boolean);
+
+  return {
+    title: titleParts.join(" | ").slice(0, 70),
+    description: descriptionParts.join(". ").slice(0, 320),
+  };
+};
 
 export const getPublicClinicServices = async (slugValue) => {
   const slug = normalizeSlug(slugValue);
@@ -130,6 +170,8 @@ export const getPublicClinicServices = async (slugValue) => {
       select: "name description",
     })
     .lean();
+
+    
 
   const serviceMap = new Map();
 
