@@ -159,7 +159,7 @@ const runScheduleTransaction = async (
         },
         {
           session,
-          new: true,
+          returnDocument: "after",
         }
       );
 

@@ -210,7 +210,7 @@ export const createBookingHold = async ({
           isActive: true,
         },
         { $inc: { __v: 1 } },
-        { new: true, session }
+        { returnDocument: "after", session }
       );
 
       if (!lockedDoctor) {
