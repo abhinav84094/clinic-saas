@@ -2,7 +2,7 @@ import InlineError from "../components/shared/InlineError";
 import ClinicSetupProgress from "../components/shared/ClinicSetupProgress";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, LoaderCircle, Monitor, Smartphone } from "lucide-react";
+import { ArrowLeft, ArrowRight, LoaderCircle, Monitor, Smartphone,Stethoscope } from "lucide-react";
 import api from "../services/api";
 import ClinicTemplateRenderer from "../components/clinic/ClinicTemplateRenderer";
 import { availableTemplates } from "../components/clinic/templates/templateRegistry";

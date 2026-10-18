@@ -1,4 +1,3 @@
-
 import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
