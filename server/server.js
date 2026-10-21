@@ -16,6 +16,7 @@ import { protect } from "./middleware/authMiddleware.js";
 import { handleRazorpayWebhook } from "./controllers/razorpayWebhookController.js";
 import corsMiddleware from "./middleware/corsMiddleware.js";
 import { configureProxyTrust } from "./middleware/rateLimitMiddleware.js";
+import sitemapRoutes from "./routes/sitemapRoutes.js"
 
 const app = express();
 configureProxyTrust(app);
@@ -53,6 +54,8 @@ app.use("/api/public/clinics", publicClinicRoutes);
 app.use("/api/clinics/:clinicId/services",serviceRoutes);
 app.use("/api/clinics/:clinicId/doctor-services",doctorServiceRoutes);
 app.use("/api/clinics/:clinicId/schedules",  scheduleRoutes);
+
+app.use("/api/public/sitemap", sitemapRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
